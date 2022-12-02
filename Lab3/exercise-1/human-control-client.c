@@ -42,12 +42,12 @@ int main()
     // TODO_6
     // send connection message
     msg_size= sizeof(remote_char_t);
-    struct remote_char_t* msg = malloc(msg_size);
-    msg->msg_type = 0;
-    msg->ch = *str;
+    struct remote_char_t msg;
+    msg.msg_type = 0;
+    msg.ch = *str;
 
-    write(fd,&msg_size,sizeof(int));
-    write(fd, msg, msg_size);
+    /*write(fd,&msg_size,sizeof(int));*/
+    write(fd, &msg, msg_size);
 
 
 
@@ -60,7 +60,7 @@ int main()
     
     int ch;
 
-    msg->msg_type = 1;
+    msg.msg_type = 1;
     int n = 0;
     do
     {
@@ -88,19 +88,18 @@ int main()
         //TODO_9
         // prepare the movement message
         
-        msg->direction = ch;
+        msg.direction = ch;
         
         
 
         //TODO_10
         //send the movement message
 
-        write(fd,&msg_size,sizeof(int));
-        write(fd, msg, msg_size);
+        /*write(fd,&msg_size,sizeof(int));*/
+        write(fd, &msg, msg_size);
         
     }while(ch != 27);
     
-    free(msg);
     
   	endwin();			/* End curses mode		  */
 

@@ -83,9 +83,10 @@ int main()
     {
         // TODO_7
         // receive message from the clients
-        if ((read(fd,&msg_size,sizeof(int))) < 0){
+        /*if ((read(fd,&msg_size,sizeof(int))) < 0){
             perror("error msg");
-        }
+        }*/
+        msg_size=sizeof(remote_char_t);
         struct remote_char_t *msg=malloc(msg_size);
         if ((read(fd, msg, msg_size))<0){
             perror("error msg");
