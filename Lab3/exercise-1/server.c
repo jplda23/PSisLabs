@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>  
+#include <stdlib.h>
 #define WINDOW_SIZE 15
 
 direction_t random_direction(){
@@ -72,22 +73,58 @@ int main()
     int ch;
     int pos_x;
     int pos_y;
+    int msg_size;
 
 
-
+    
     direction_t  direction;
 
     while (1)
     {
         // TODO_7
         // receive message from the clients
+        if ((read(fd,&msg_size,sizeof(int))) < 0){
+            perror("error msg");
+        }
+        struct remote_char_t *msg=malloc(msg_size);
+        if ((read(fd, msg, msg_size))<0){
+            perror("error msg");
+        }
         
         //TODO_8
         // process connection messages
+        if (msg->msg_type==0){
+            ch = msg->ch;
+            pos_x=WINDOW_SIZE/2;
+            pos_y=WINDOW_SIZE/2;
+        }
 
         // TODO_11
         // process the movement message
+        else if (msg->msg_type==1){
+            wmove(my_win, pos_x, pos_y);
+            waddch(my_win,' ');
+            wrefresh(my_win);
+            switch (msg->direction)
+            {
+            case KEY_LEFT:
+                pos_y=MAX(pos_y-1,0);
+                break;
+            case KEY_RIGHT:
+                pos_y=MIN(pos_y+1,WINDOW_SIZE);
+                break;
+            case KEY_DOWN:
+                pos_x=MIN(pos_x+1,WINDOW_SIZE);
+                break;
+            case KEY_UP:
+                pos_x=MAX(pos_x-1,0);
+                break;
+            default:
+                    break;
+        }
+        }
         
+        free(msg);
         /* draw mark on new position */
         wmove(my_win, pos_x, pos_y);
         waddch(my_win,ch| A_BOLD);

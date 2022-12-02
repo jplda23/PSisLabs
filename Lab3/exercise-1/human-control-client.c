@@ -6,6 +6,7 @@
 #include <fcntl.h>  
 #include <ctype.h> 
 #include <stdlib.h>
+#include <string.h>
  
 
 int main()
@@ -32,18 +33,21 @@ int main()
     // read the character from the user
 
     char str[100];
-
+    int msg_size;
+    printf("What letter will you be?\n");
     fgets(str, 100, stdin);
 
-    str[1] = '\0';
+    str[strlen(str)-1] = '\0';
 
     // TODO_6
     // send connection message
+    msg_size= sizeof(remote_char_t);
+    struct remote_char_t* msg = malloc(msg_size);
+    msg->msg_type = 0;
+    msg->ch = *str;
 
-    remote_char_t msg;
-
-    msg.mgs_type = 0;
-    msg.ch = str;
+    write(fd,&msg_size,sizeof(int));
+    write(fd, msg, msg_size);
 
 
 
@@ -56,7 +60,7 @@ int main()
     
     int ch;
 
-    m.msg_type = 1;
+    msg->msg_type = 1;
     int n = 0;
     do
     {
@@ -83,12 +87,20 @@ int main()
         refresh();			/* Print it on to the real screen */
         //TODO_9
         // prepare the movement message
+        
+        msg->direction = ch;
+        
+        
 
         //TODO_10
         //send the movement message
+
+        write(fd,&msg_size,sizeof(int));
+        write(fd, msg, msg_size);
         
     }while(ch != 27);
     
+    free(msg);
     
   	endwin();			/* End curses mode		  */
 
