@@ -108,16 +108,16 @@ int main()
             wrefresh(my_win);
             switch (msg->direction)
             {
-            case KEY_LEFT:
+            case LEFT:
                 pos_y=MAX(pos_y-1,0);
                 break;
-            case KEY_RIGHT:
+            case RIGHT:
                 pos_y=MIN(pos_y+1,WINDOW_SIZE);
                 break;
-            case KEY_DOWN:
+            case DOWN:
                 pos_x=MIN(pos_x+1,WINDOW_SIZE);
                 break;
-            case KEY_UP:
+            case UP:
                 pos_x=MAX(pos_x-1,0);
                 break;
             default:
