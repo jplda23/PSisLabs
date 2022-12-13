@@ -1,65 +1,35 @@
-#include <stdlib.h>
-#include <ncurses.h>
-
-
 #include "chase.h"
 
 WINDOW * message_win;
 
-
-typedef struct player_position_t{
-    int x, y;
-    char c;
-} player_position_t;
-
-void new_player (player_position_t * player, char c){
-    player->x = WINDOW_SIZE/2;
-    player->y = WINDOW_SIZE/2;
-    player->c = c;
-}
-
-void draw_player(WINDOW *win, player_position_t * player, int delete){
-    int ch;
-    if(delete){
-        ch = player->c;
-    }else{
-        ch = ' ';
-    }
-    int p_x = player->x;
-    int p_y = player->y;
-    wmove(win, p_y, p_x);
-    waddch(win,ch);
-    wrefresh(win);
-}
-
-void moove_player (player_position_t * player, int direction){
-    if (direction == KEY_UP){
-        if (player->y  != 1){
-            player->y --;
-        }
-    }
-    if (direction == KEY_DOWN){
-        if (player->y  != WINDOW_SIZE-2){
-            player->y ++;
-        }
-    }
-    
-
-    if (direction == KEY_LEFT){
-        if (player->x  != 1){
-            player->x --;
-        }
-    }
-    if (direction == KEY_RIGHT)
-        if (player->x  != WINDOW_SIZE-2){
-            player->x ++;
-    }
-}
-
 player_position_t p1;
 
-int main(){
-	initscr();		    	/* Start curses mode 		*/
+int main(int argc, char *argv[]){
+    
+    char* socket_name=argv[argc-1];
+
+    //socket creation and binding
+    int sock_fd;
+    sock_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (sock_fd == -1){
+	    perror("socket: ");
+	    exit(-1);
+    }  
+
+
+
+    struct sockaddr_un local_client_addr;
+    local_client_addr.sun_family = AF_UNIX;
+    sprintf(local_client_addr.sun_path,"%s_%d", socket_name, getpid());
+
+    unlink(local_client_addr.sun_path);
+    int err = bind(sock_fd, (const struct sockaddr *) &local_client_addr, sizeof(local_client_addr));
+    if(err == -1) {
+        perror("bind");
+        exit(-1);
+    }
+
+    initscr();		    	/* Start curses mode 		*/
 	cbreak();				/* Line buffering disabled	*/
     keypad(stdscr, TRUE);   /* We get F1, F2 etc..		*/
 	noecho();			    /* Don't echo() while we do getch */
