@@ -17,26 +17,32 @@ typedef struct player_position_t{
     char c;
 } player_position_t;
 
+typedef enum direction_t {UP, DOWN, LEFT, RIGHT} direction_t;
+
 typedef struct message_c2s{
     int type; // 0-connect 1-info 2-disconnect
-    player_position_t player_info;
+    int array_pos;
+    char id;
+    direction_t direction;
 } message_c2s;
 
-typedef struct player_list{
-    player_position_t player;
-    struct player_list* next;
-} player_list;
+typedef struct player{
+    int health;// 0-jogador dead
+    player_position_t position;
+} player;
 
 typedef struct reward{
+    int flag; // 0-not exists or eaten, 1-exists
     int x,y;
     int value;
-    struct reward* next;
 }reward;
 
 typedef struct message_s2c{
-    reward* reward_list_pointer;
-    player_list* bots;
-    player_list* players;
+    int type; //0 ball info, 1 field status, 2 disconect/dead
+    char id;
+    struct reward rewards[10];
+    struct player players[10];
+    struct player bots[10];
     
 } message_s2c;
 

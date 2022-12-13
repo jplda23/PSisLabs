@@ -14,9 +14,7 @@ int main(int argc, char *argv[]){
     if (sock_fd == -1){
 	    perror("socket: ");
 	    exit(-1);
-    }  
-
-
+    } 
 
     struct sockaddr_un local_client_addr;
     local_client_addr.sun_family = AF_UNIX;
@@ -28,6 +26,16 @@ int main(int argc, char *argv[]){
         perror("bind");
         exit(-1);
     }
+
+    struct sockaddr_un server_addr;
+    server_addr.sun_family = AF_UNIX;
+    strcpy(server_addr.sun_path, socket_name);
+
+    //SENDING CONNECT MESSAGE AND BEING ATRIBUTED A LETTER
+    message_c2s m;
+    m.type = 0;//connect type
+    sendto(sock_fd, &m, sizeof(message_c2s), 0, 
+            (const struct sockaddr *)&server_addr, sizeof(server_addr));
 
     initscr();		    	/* Start curses mode 		*/
 	cbreak();				/* Line buffering disabled	*/
