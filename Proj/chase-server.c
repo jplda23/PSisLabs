@@ -14,6 +14,14 @@ void init_players_health(player* player_n){
     }
 }
 
+void init_bots_health(player* bot_n){
+    int i;
+    for(i=0;i<10;i++){
+        bot_n[i].health=0;
+        bot_n[i].position.c='*';
+    }
+}
+
 int get_player_input_array_position(player player_n[], int max_size){
     int i;
     for (i=0; i<max_size; i++){
@@ -48,13 +56,15 @@ int main(int argc, char *argv[]){
     }
 
     player players[10];
-    init_players_health(players);
     player bots[10];
+    init_players_health(players);
+    init_bots_health(bots);    
     reward rewards[10];
     int n_bytes;
     message_s2c message_to_send;
     message_c2s message_received;
     int array_pos;
+    int i;
 
     struct sockaddr_un client_addr;
     socklen_t client_addr_size = sizeof(struct sockaddr_un);
@@ -69,9 +79,9 @@ int main(int argc, char *argv[]){
             //initiate player in array
             array_pos=get_player_input_array_position(players, 10);
             players[array_pos].health=10;
-            players[array_pos].position.x=WINDOW_SIZE/2;
+            players[array_pos].position.x=WINDOW_SIZE/2; // se forem inicializados dois ao mesmo tempo?
             players[array_pos].position.y=WINDOW_SIZE/2;
-            players[array_pos].position.c=RandInt('a','Z');
+            players[array_pos].position.c=RandInt('a','Z'); // Falta testar o char para ver se já existe
 
             message_to_send.type=0;
             message_to_send.array_pos=array_pos;
@@ -80,6 +90,48 @@ int main(int argc, char *argv[]){
             sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
                     (const struct sockaddr *) &client_addr, client_addr_size);
             
+        }
+        else if (message_received.type == -1) {
+            // connect from bot - initialize
+
+            bots[message_received.array_pos].health = 10;
+            bots[message_received.array_pos].position.x = RandInt(1, WINDOW_SIZE);
+            bots[message_received.array_pos].position.y = RandInt(1, WINDOW_SIZE);
+
+            // Checking if that position was already occupied by a robot
+            for (i = 0; i < 10; i++)
+            {
+                if (bots[i].health == 0)
+                    continue;
+                else {
+                    while (bots[i].position.x == bots[message_received.array_pos].position.x)
+                    {
+                       bots[message_received.array_pos].position.x = RandInt(1, WINDOW_SIZE); 
+                    }
+                    while (bots[i].position.y == bots[message_received.array_pos].position.y)
+                    {
+                       bots[message_received.array_pos].position.y = RandInt(1, WINDOW_SIZE); 
+                    }
+                }
+            }
+
+            // Checking if that position was already occupied by a human
+            for (i = 0; i < 10; i++)
+            {
+                if (players[i].health == 0)
+                    continue;
+                else {
+                    while (bots[message_received.array_pos].position.x == players[i].position.x)
+                    {
+                       bots[message_received.array_pos].position.x = RandInt(1, WINDOW_SIZE); 
+                    }
+                    while (bots[message_received.array_pos].position.y == players[i].position.y)
+                    {
+                       bots[message_received.array_pos].position.y = RandInt(1, WINDOW_SIZE); 
+                    }
+                }
+            }     
+                          
         }
 
     }
