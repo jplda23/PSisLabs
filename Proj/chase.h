@@ -11,7 +11,6 @@
 #include <ctype.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <time.h>
 
 typedef struct player_position_t{
     int x, y;
@@ -21,7 +20,7 @@ typedef struct player_position_t{
 typedef enum direction_t {UP, DOWN, LEFT, RIGHT} direction_t;
 
 typedef struct message_c2s{
-    int type; // 0-connect 1-info 2-disconnect
+    int type; // -1-connect bot 0-connect human 1-info 2-disconnect
     int array_pos;
     char id;
     direction_t direction;
@@ -41,6 +40,7 @@ typedef struct reward{
 typedef struct message_s2c{
     int type; //0 ball info, 1 field status, 2 disconect/dead
     char id;
+    int array_pos;
     struct reward rewards[10];
     struct player players[10];
     struct player bots[10];

@@ -1,12 +1,14 @@
 #include "chase.h"
 
-WINDOW * message_win;
-
-player_position_t p1;
-
 int main(int argc, char *argv[]){
     
-    char* socket_name=argv[argc-1];
+    char* socket_name=argv[argc-2];
+
+    // ATENÇÃO
+    // ATENÇÃO
+    // ATENÇÃO
+    // ATENÇÃO
+    // CÓDIGO DOS SOCKETS POR REVER!!!!!!
 
     //socket creation and binding
     int sock_fd;
@@ -15,8 +17,6 @@ int main(int argc, char *argv[]){
 	    perror("socket: ");
 	    exit(-1);
     }  
-
-
 
     struct sockaddr_un local_client_addr;
     local_client_addr.sun_family = AF_UNIX;
@@ -29,62 +29,43 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
 
-    initscr();		    	/* Start curses mode 		*/
-	cbreak();				/* Line buffering disabled	*/
-    keypad(stdscr, TRUE);   /* We get F1, F2 etc..		*/
-	noecho();			    /* Don't echo() while we do getch */
-
-    /* creates a window and draws a border */
-    WINDOW * my_win = newwin(WINDOW_SIZE, WINDOW_SIZE, 0, 0);
-    box(my_win, 0 , 0);	
-	wrefresh(my_win);
-    keypad(my_win, true);
-    /* creates a window and draws a border */
-    message_win = newwin(5, WINDOW_SIZE, WINDOW_SIZE, 0);
-    box(message_win, 0 , 0);	
-	wrefresh(message_win);
-
-
-    new_player(&p1, 'y');
-    draw_player(my_win, &p1, true);
 
     int nBots;  // number of bots
-    time_t ti, tf;
     int i;
+
+    nBots = argv[argc-1];
+    messagec2s m2s;
+
+    m2s.type = -1;
+    m2s.id = '*';
+
+    for (i = 0; i < nBots; i++)
+    {
+        m2s.array_pos = i;
+
+        // Está incompleto, mas fica a intenção
+        sendto(sock_fd, &m2s, sizeof(message_c2s), 0, 
+            (const struct sockaddr *) &server_addr, sizeof(server_addr));
+    }
+
+    m2s.type = 1;
+    m2s.id = '*';
     
-    nBots = (int)srand( clock() ) % 10 + 1;
+    while(1){
 
-    player bots[nBots];
+        sleep((unsigned) 3);
 
-    direction_t direction;
-
-    time(&ti);
-    
-    tf = ti + 3000;    
-
-    int key = -1;
-
-    while(key != 27 && key!= 'q'){
-        key = wgetch(my_win);
-
-        if (tf - ti > 3000)
+        for (i = 0; i < nBots; i++)
         {
-            time(&ti);
 
-            for (i = 0; i < nBots; i++)
-            {
-                
-                direction = random()%4;
-           
-            }
-            
+            m2s.array_pos = i;
+            m2s.direction = random()%4;
 
-
-        }
-
-        time(&tf);
+            // Está incompleto, mas fica a intenção
+            sendto(sock_fd, &m2s, sizeof(message_c2s), 0, 
+                (const struct sockaddr *) &server_addr, sizeof(server_addr));                
         
-
+        }
     }
 
     exit(0);

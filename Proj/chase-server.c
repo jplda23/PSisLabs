@@ -2,10 +2,15 @@
 
 WINDOW * message_win;
 
+int RandInt(int low, int high) {
+  return low + rand() % (high - low + 1);
+}
+
 void init_players_health(player* player_n){
     int i;
     for(i=0;i<10;i++){
         player_n[i].health=0;
+        player_n[i].position.c='1';
     }
 }
 
@@ -13,10 +18,10 @@ int get_player_input_array_position(player player_n[], int max_size){
     int i;
     for (i=0; i<max_size; i++){
         if (player_n[i].health==0){
-            break;
+            return i;
         }
     }
-    return i;
+    return -1;
 }
 
 int main(int argc, char *argv[]){
@@ -47,7 +52,9 @@ int main(int argc, char *argv[]){
     player bots[10];
     reward rewards[10];
     int n_bytes;
+    message_s2c message_to_send;
     message_c2s message_received;
+    int array_pos;
 
     struct sockaddr_un client_addr;
     socklen_t client_addr_size = sizeof(struct sockaddr_un);
@@ -59,7 +66,20 @@ int main(int argc, char *argv[]){
             continue;
         }
         if (message_received.type==0){
+            //initiate player in array
+            array_pos=get_player_input_array_position(players, 10);
+            players[array_pos].health=10;
+            players[array_pos].position.x=WINDOW_SIZE/2;
+            players[array_pos].position.y=WINDOW_SIZE/2;
+            players[array_pos].position.c=RandInt('a','Z');
 
+            message_to_send.type=0;
+            message_to_send.array_pos=array_pos;
+            message_to_send.id=players[array_pos].position.c;
+
+            sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
+                    (const struct sockaddr *) &client_addr, client_addr_size);
+            
         }
 
     }
