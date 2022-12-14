@@ -32,10 +32,27 @@ int main(int argc, char *argv[]){
     strcpy(server_addr.sun_path, socket_name);
 
     //SENDING CONNECT MESSAGE AND BEING ATRIBUTED A LETTER
-    message_c2s m;
-    m.type = 0;//connect type
-    sendto(sock_fd, &m, sizeof(message_c2s), 0, 
+    message_c2s message_to_server;
+    message_s2c message_from_server;
+    message_to_server.type = 0;//connect type
+    sendto(sock_fd, &message_to_server, sizeof(message_c2s), 0, 
             (const struct sockaddr *)&server_addr, sizeof(server_addr));
+
+    //RECEIVE ARRAY_POS AND CHAR FROM SERVER
+    recv(sock_fd,&message_from_server, sizeof(message_s2c),0);
+    if (message_from_server.type==-1){
+        printf("Server is full, please try again soon\n");
+    }
+    else if(message_from_server.type==0){
+        printf("You are letter %s, Press any key to continue\n", &message_from_server.id);
+        message_to_server.array_pos=message_from_server.array_pos;
+        message_to_server.id=message_from_server.id;
+        getchar();
+    }
+    else{
+        printf("Something went wrong while connecting, please try again soon\n");
+        exit(0);
+    }
 
     initscr();		    	/* Start curses mode 		*/
 	cbreak();				/* Line buffering disabled	*/

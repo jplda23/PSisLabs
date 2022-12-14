@@ -38,7 +38,7 @@ typedef struct reward{
 }reward;
 
 typedef struct message_s2c{
-    int type; //0 ball info, 1 field status, 2 disconect/dead
+    int type; //-1 no more clients allowed, 0 ball info, 1 field status, 2 disconect/dead
     char id;
     int array_pos;
     struct reward rewards[10];

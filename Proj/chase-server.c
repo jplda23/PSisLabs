@@ -76,7 +76,7 @@ int main(int argc, char *argv[]){
             message_to_send.type=0;
             message_to_send.array_pos=array_pos;
             message_to_send.id=players[array_pos].position.c;
-
+            printf("%d",array_pos);
             sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
                     (const struct sockaddr *) &client_addr, client_addr_size);
             
