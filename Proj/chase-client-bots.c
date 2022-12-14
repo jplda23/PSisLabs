@@ -34,7 +34,7 @@ int main(int argc, char *argv[]){
     int i;
 
     nBots = argv[argc-1];
-    messagec2s m2s;
+    message_c2s m2s;
 
     m2s.type = -1;
     m2s.id = '*';
