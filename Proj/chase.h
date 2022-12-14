@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <time.h>
 
 typedef struct player_position_t{
     int x, y;

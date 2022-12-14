@@ -44,8 +44,9 @@ int main(int argc, char *argv[]){
         printf("Server is full, please try again soon\n");
     }
     else if(message_from_server.type==0){
-        printf("You are letter %s, Press any key to continue\n", &message_from_server.id);
+        printf("You are letter %s, Press ENTER to continue\n", &message_from_server.id);
         message_to_server.array_pos=message_from_server.array_pos;
+        printf("%d\n",message_to_server.array_pos);
         message_to_server.id=message_from_server.id;
         getchar();
     }
@@ -83,9 +84,13 @@ int main(int argc, char *argv[]){
 
         }
 
-        mvwprintw(message_win, 1,1,"%c key pressed", key);
+        //mvwprintw(message_win, 1,1,"%c key pressed", key);
         wrefresh(message_win);	
     }
+    
+    message_to_server.type=2; //disconnect type
+    sendto(sock_fd, &message_to_server, sizeof(message_c2s), 0, 
+                (const struct sockaddr *)&server_addr, sizeof(server_addr));
 
     exit(0);
 }
