@@ -125,23 +125,92 @@ bool check_connection(struct sockaddr_un client_addr, struct sockaddr_un connect
     return false;
 }
 
-bool collision_checker(player* dummie_player, int type) {
+int go_through_player(player* players, player* dummy_player){
+
+    int i;
+
+    for (i = 0; i < 10; i++)
+    {
+        if (players[i].health == 0)
+            continue;
+        else if (players[i].position.x == dummy_player->position.x && players[i].position.y == dummy_player->position.y)
+            return i;        
+    }
+
+    return -1;
+    
+}
+
+int go_through_rewards(reward* rewards, player* dummy_player){
+
+    int i;
+
+    for (i = 0; i < 10; i++)
+    {
+        if (rewards[i].flag == 0)
+            continue;
+        else if (rewards[i].x == dummy_player->position.x && rewards[i].y == dummy_player->position.y)
+            return i;        
+    }
+
+    return -1;
+    
+}
+
+bool collision_checker(player* players, player* dummie_player, player* bots, reward* rewards, int type, int array_position) {
 
     int i;
 
     switch (type)
     {
-    case 0:     // bot
-        
-        for (i = 0; i < 10; i++)
+    case 0:     // dummie_player é um bot
+
+        i = go_through_player(players, dummie_player);
+        if (i != -1) // Encontrou um player na sua posição
         {
-            /* code */
+            dummie_player->position.x = bots[array_position].position.x;
+            dummie_player->position.y = bots[array_position].position.y;
+            players[i].health = players[i].health - 1 >= 0 ? players[i].health - 1 : 0;
         }
+
+        if (go_through_player(bots, dummie_player) != -1) // Encontrou um bot na sua posição
+        {
+            dummie_player->position.x = bots[array_position].position.x;
+            dummie_player->position.y = bots[array_position].position.y;
+        }
+
+        if (go_through_rewards(rewards, dummie_player) != -1) // Foi contra um prémio
+        {
+            dummie_player->position.x = bots[array_position].position.x;
+            dummie_player->position.y = bots[array_position].position.y;        
+        }       
         
         break;
 
-    case 1:    // Player
-        /* code */
+    case 1:    // dummie_player é um Player
+        
+        i = go_through_player(players, dummie_player);
+        if (i != -1) // Encontrou um player na sua posição
+        {
+            dummie_player->position.x = players[array_position].position.x;
+            dummie_player->position.y = players[array_position].position.y;
+            dummie_player->health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
+            players[i].health = players[i].health - 1 >= 0 ? players[i].health - 1 : 0;
+        }
+
+        if (go_through_player(bots, dummie_player) != -1) // Encontrou um bot na sua posição
+        {
+            dummie_player->position.x = bots[array_position].position.x;
+            dummie_player->position.y = bots[array_position].position.y;
+        }
+
+        i = go_through_rewards(rewards, dummie_player);
+        if (i != -1) // Foi contra um prémio
+        {
+            rewards[i].flag = 0;
+            dummie_player->health = dummie_player->health + rewards[i].value <= 10 ? dummie_player->health + rewards[i].value  : 10;
+        } 
+
         break;    
     
     default:
