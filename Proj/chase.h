@@ -69,7 +69,7 @@ void draw_player(WINDOW *win, player_position_t * player, int delete){
     wrefresh(win);
 }
 
-void moove_player (player_position_t * player, int direction){
+void move_player (player_position_t * player, int direction){
     if (direction == KEY_UP){
         if (player->y  != 1){
             player->y --;

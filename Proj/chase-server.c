@@ -60,8 +60,8 @@ void init_rewards_board(reward* reward_n, player* bots, player* players){
         reward_n[i].value=RandInt(1,5);
         reward_n[i].flag=1;
         do{
-        x=RandInt(1,WINDOW_SIZE-1);
-        y=RandInt(1,WINDOW_SIZE-1);
+        x=RandInt(1,WINDOW_SIZE-2);
+        y=RandInt(1,WINDOW_SIZE-2);
         }while(is_free_position(reward_n, bots, players, x, y)==false);
         reward_n[i].x=x;
         reward_n[i].y=y;
@@ -73,7 +73,7 @@ void init_rewards_board(reward* reward_n, player* bots, player* players){
 int already_existent_char(player* player_n, char c){//returns the number of players with that char, expect result 1
     int i, count=0;
     for(i=0;i<10;i++){
-        if(strcmp(&player_n[i].position.c,&c)==0){
+        if(player_n[i].position.c==c){
             count++;
         }
     }
@@ -125,6 +125,31 @@ bool check_connection(struct sockaddr_un client_addr, struct sockaddr_un connect
     return false;
 }
 
+bool collision_checker(player* dummie_player, int type) {
+
+    int i;
+
+    switch (type)
+    {
+    case 0:     // bot
+        
+        for (i = 0; i < 10; i++)
+        {
+            /* code */
+        }
+        
+        break;
+
+    case 1:    // Player
+        /* code */
+        break;    
+    
+    default:
+        break;
+    }
+
+}
+
 
 
 int main(int argc, char *argv[]){
@@ -152,6 +177,7 @@ int main(int argc, char *argv[]){
 
     player players[10];
     player bots[10];
+    player dummy_player;
     init_players_health(players);
     init_bots_health(bots);    
     reward rewards[10];
@@ -162,7 +188,8 @@ int main(int argc, char *argv[]){
     int array_pos,x, y;
     int i;
 
-    struct sockaddr_un connected_clients[10];//To save all the connected clients and not read from unconnected
+
+    struct sockaddr_un connected_clients[11];//To save all the connected clients and not read from unconnected
     struct sockaddr_un client_addr;
     socklen_t client_addr_size = sizeof(struct sockaddr_un);
     
@@ -188,65 +215,96 @@ int main(int argc, char *argv[]){
             message_to_send.id=players[array_pos].position.c;
             sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
                     (const struct sockaddr *) &client_addr, client_addr_size);
-            printf("%d\n",array_pos);
             
         }
         
-        else if (message_received.type == -1) {//talvez devias fazer isto em funções ou assim
+        else if (message_received.type == -1) {
             // connect from bot - initialize
-
+            connected_clients[10]=client_addr;
             bots[message_received.array_pos].health = 10;
-            bots[message_received.array_pos].position.x = RandInt(1, WINDOW_SIZE);
-            bots[message_received.array_pos].position.y = RandInt(1, WINDOW_SIZE);
-
-            // Checking if that position was already occupied by a robot
-            for (i = 0; i < 10; i++)
-            {
-                if (bots[i].health == 0)
-                    continue;
-                else {
-                    while (bots[i].position.x == bots[message_received.array_pos].position.x)
-                    {
-                       bots[message_received.array_pos].position.x = RandInt(1, WINDOW_SIZE-1); 
-                    }
-                    while (bots[i].position.y == bots[message_received.array_pos].position.y)
-                    {
-                       bots[message_received.array_pos].position.y = RandInt(1, WINDOW_SIZE-1); 
-                    }
-                }
-            }
-
-            // Checking if that position was already occupied by a human
-            for (i = 0; i < 10; i++)
-            {
-                if (players[i].health == 0)
-                    continue;
-                else {
-                    while (bots[message_received.array_pos].position.x == players[i].position.x)
-                    {
-                       bots[message_received.array_pos].position.x = RandInt(1, WINDOW_SIZE); 
-                    }
-                    while (bots[message_received.array_pos].position.y == players[i].position.y)
-                    {
-                       bots[message_received.array_pos].position.y = RandInt(1, WINDOW_SIZE); 
-                    }
-                }
-            }     
+            do{
+                x = RandInt(1, WINDOW_SIZE-2);
+                y = RandInt(1, WINDOW_SIZE-2);
+            }while(is_free_position(rewards, bots, players, x, y)==false);
+            
+            bots[message_received.array_pos].position.x = x;
+            bots[message_received.array_pos].position.y = y;
                           
         }
+        else if(message_received.type == 1){
+            if(check_connection(client_addr, connected_clients)==true){ //IS HUMAN AND WILL UPDATE THE HUMAN, WILL HAVE TO INTRODUCE A CHEATER CHECK TOO
+                array_pos=message_received.array_pos;
+                dummy_player.position.x=players[array_pos].position.x;
+                dummy_player.position.y=players[array_pos].position.y;
+                dummy_player.position.c=players[array_pos].position.c;
+                dummy_player.health=players[array_pos].health;
+                move_player(dummy_player, message_received.direction);
+                //Check for collision and if collision
+                if(dummy_player.health==0){
+                    message_to_send.type=2;
+                    message_to_send.players=players;
+                    message_to_send.bots=bots;
+                    message_to_send.rewards=rewards;
+                    message_to_send.array_pos=array_pos;
+                    message_to_send.id=dummy_player.c;
+                    sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
+                        (const struct sockaddr *) &client_addr, client_addr_size); //SEND MESSAGE BEFORE UPDATING THE PLAYERS SO THE CLIENT CAN DRAW DEAD BOARD
+                    players[array_pos].health=0;
+                    players[array_pos].position.c='1';
+                    players[array_pos].position.x=-1;
+                    players[array_pos].position.y=-1;
+                }
+                else if(dummy_player.health>0){
+                    players[array_pos]=dummy_player;
+                    message_to_send.type=1;
+                    message_to_send.players=players;
+                    message_to_send.bots=bots;
+                    message_to_send.rewards=rewards;
+                    message_to_send.array_pos=array_pos;
+                    message_to_send.id=dummy_player.c;
+                    sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
+                        (const struct sockaddr *) &client_addr, client_addr_size);
 
-        else if (check_connection(client_addr, connected_clients)==true){
-            if (message_received.type == 2 ){
+                }
+            }
+            else if(client_addr.sun_path==connected_clients[10].sun_path){ //IS A BOT AND WILL UPDATE THE BOT
+                array_pos=message_received.array_pos;
+                dummy_player.position.x=bots[array_pos].position.x;
+                dummy_player.position.y=bots[array_pos].position.y;
+                dummy_player.position.c=bots[array_pos].position.c;
+                dummy_player.health=10;
+                move_player(dummy_player, message_received.direction);
+                //Check for collision and if collision 
+                players[array_pos]=dummy_player;
+                message_to_send.type=1;
+                message_to_send.players=players;
+                message_to_send.bots=bots;
+                message_to_send.rewards=rewards;
+                message_to_send.array_pos=array_pos;
+                message_to_send.id=dummy_player.c;
+                sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
+                    (const struct sockaddr *) &client_addr, client_addr_size);
+
+            }
+            
+        }
+
+        else if (message_received.type == 2){
+            if (check_connection(client_addr, connected_clients)==true){
                 //DISCONNECT THE CLIENT FROM THE SERVER
                 array_pos=message_received.array_pos;
                 strcpy(connected_clients[array_pos].sun_path,socket_name);//maybe change this, I just want to reset the memory
                 players[array_pos].position.c='1';
                 players[array_pos].health=0;
+                players[array_pos].position.x=-1;
+                players[array_pos].position.y=-1;
             }
+
+            
         }
 
         time(&time_new);
-        if (time_new-time_old>=5)//EVERY 5 SECONDS ADDS 1 REWARD(if less than 10)
+        if (difftime(time_new,time_old)>=5)//EVERY 5 SECONDS ADDS 1 REWARD(if less than 10)
         {
             time_old=time_new;
             for(i=0;i<10;i++){
@@ -254,11 +312,12 @@ int main(int argc, char *argv[]){
                     rewards[i].flag=1;
                     rewards[i].value=RandInt(1,5);
                     do{
-                        x=RandInt(1,WINDOW_SIZE-1);
-                        y=RandInt(1,WINDOW_SIZE-1);
+                        x=RandInt(1,WINDOW_SIZE-2);
+                        y=RandInt(1,WINDOW_SIZE-2);
                     }while(is_free_position(rewards,bots, players, x, y)==false);
                     rewards[i].x=x;
                     rewards[i].y=y;
+                    printf("newreward\n");
                     break;
                 }
             }

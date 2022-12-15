@@ -46,7 +46,6 @@ int main(int argc, char *argv[]){
     else if(message_from_server.type==0){
         printf("You are letter %s, Press ENTER to continue\n", &message_from_server.id);
         message_to_server.array_pos=message_from_server.array_pos;
-        printf("%d\n",message_to_server.array_pos);
         message_to_server.id=message_from_server.id;
         getchar();
     }
