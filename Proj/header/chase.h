@@ -269,7 +269,7 @@ bool check_cheating(char saved, char provided ,struct sockaddr_un client_addr, s
     if(saved!=provided){
         return true;
     }
-    if(strcmp(connected_clients[array_pos].sun_path,client_addr.sun_path)==0){
+    if(strcmp(connected_clients[array_pos].sun_path,client_addr.sun_path)!=0){
         return true; 
     }
     return false;

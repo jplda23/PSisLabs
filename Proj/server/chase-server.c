@@ -84,9 +84,6 @@ int main(int argc, char *argv[]){
             message_to_send.type=2;
             continue;
         }
-        /*if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
-            continue;
-        }*/
         if (message_received.type==0){
             //initiate player in array
             array_pos=get_player_input_array_position(players, 10);
@@ -129,9 +126,12 @@ int main(int argc, char *argv[]){
             
                           
         }
-        else if(message_received.type == 1){
+        if(message_received.type == 1){
             if(check_key(message_received.direction)==false){
                 continue;
+            }
+            if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
+            continue;
             }
             if(check_connection(client_addr, connected_clients)==true){ //IS HUMAN AND WILL UPDATE THE HUMAN, WILL HAVE TO INTRODUCE A CHEATER CHECK TOO
                 array_pos=message_received.array_pos;
@@ -184,6 +184,9 @@ int main(int argc, char *argv[]){
         }
 
         else if (message_received.type == 2){
+            if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
+            continue;
+            }
             if (check_connection(client_addr, connected_clients)==true){
                 //DISCONNECT THE CLIENT FROM THE SERVER
                 array_pos=message_received.array_pos;
