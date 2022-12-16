@@ -266,12 +266,12 @@ bool check_cheating(char saved, char provided ,struct sockaddr_un client_addr, s
     if(array_pos>=10 || array_pos<0){
         return true;
     }
-    if(saved!=provided){
+    /*if(saved!=provided){
         return true;
     }
     if(strcmp(connected_clients[array_pos].sun_path,client_addr.sun_path)!=0){
         return true; 
-    }
+    }*/
     return false;
 }
 

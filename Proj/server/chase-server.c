@@ -132,17 +132,17 @@ int main(int argc, char *argv[]){
                 continue;
             }
             if(check_connection(client_addr, connected_clients)==true){ //IS HUMAN AND WILL UPDATE THE HUMAN, WILL HAVE TO INTRODUCE A CHEATER CHECK TOO
-                if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
+                if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){//check for cheating, only test for humans
                     continue;
                 }
                 array_pos=message_received.array_pos;
                 if (players[array_pos].health==0){//CHECK IF IT WAS KILLED BETWEEN MESSAGES
                     message_to_send.type=2;
-                    memcpy( message_to_send.players,players, 10*sizeof(struct player));
+                    memcpy( message_to_send.players,players, 10*sizeof(struct player)); //loads info to the message just if the client wants to print the endboard
                     memcpy( message_to_send.bots,bots, 10*sizeof(struct player));
                     message_to_send.array_pos=array_pos;
                     message_to_send.id=dummy_player.position.c;
-                    players[array_pos].health=0;
+                    players[array_pos].health=0; //eliminates the player
                     players[array_pos].position.c='1';
                     players[array_pos].position.x=-1;
                     players[array_pos].position.y=-1;
