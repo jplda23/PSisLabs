@@ -1,14 +1,8 @@
-#include "chase.h"
+#include "../header/chase.h"
 
 int main(int argc, char *argv[]){
     
     char* socket_name=argv[argc-2];
-
-    // ATENÇÃO
-    // ATENÇÃO
-    // ATENÇÃO
-    // ATENÇÃO
-    // CÓDIGO DOS SOCKETS POR REVER!!!!!!
 
     //socket creation and binding
     int sock_fd;
@@ -35,9 +29,11 @@ int main(int argc, char *argv[]){
     int nBots;  // number of bots
     int i;
     
-  
+    char* nBotsc = argv[argc-1];
 
-    nBots = (int) *argv[argc-1]-'0';
+    nBots = atoi(nBotsc);
+
+
     if(nBots>10 || nBots<0){
         printf("Invalid number of bots. \n The programme will shut down :( \n");
         exit(-1);

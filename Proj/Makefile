@@ -1,8 +1,11 @@
-all: chase-client
+all: chase-server chase-client chase-bot
 
 
-chase-client: chase-client.c chase.h
-	gcc -Wall -pedantic chase-client.c -g -o chase-client -lncurses
+chase-client: ./human-client/chase-client.c ./header/chase.h
+	gcc -Wall -pedantic ./human-client/chase-client.c -g -o ./exe/client -lncurses
 
-clean:
-	rm chase-client
+chase-server: ./server/chase-server.c ./header/chase.h
+	gcc -Wall -pedantic ./server/chase-server.c -g -o ./exe/server -lncurses
+
+chase-bot: ./bot-client/chase-client-bots.c ./header/chase.h
+	gcc -Wall -pedantic ./bot-client/chase-client-bots.c -g -o ./exe/bots -lncurses

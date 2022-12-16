@@ -8,6 +8,7 @@
     ],
     "files.associations": {
         "ncurses.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "chase.h": "c"
     }
 }
