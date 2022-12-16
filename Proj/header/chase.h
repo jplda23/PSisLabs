@@ -343,10 +343,10 @@ int collision_checker(player* players, player* dummie_player, player* bots, rewa
 
     switch (is_player)
     {
-    case 0:     // dummie_player é um bot
+    case 0:     // dummie_player is a bot
 
         i = go_through_player(players, dummie_player);//Test vs players
-        if (i != -1) // Encontrou um player na sua posição
+        if (i != -1) // Found a player in its position
         {
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
@@ -354,14 +354,14 @@ int collision_checker(player* players, player* dummie_player, player* bots, rewa
             return 1;
         }
 
-        if (go_through_player(bots, dummie_player) != -1) // Encontrou um bot na sua posição
+        if (go_through_player(bots, dummie_player) != -1) // Found a bot in its position
         {
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
             return 1;
         }
 
-        if (go_through_rewards(rewards, dummie_player) != -1) // Foi contra um prémio
+        if (go_through_rewards(rewards, dummie_player) != -1) // Found a prize
         {
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
@@ -370,10 +370,10 @@ int collision_checker(player* players, player* dummie_player, player* bots, rewa
         
         break;
 
-    case 1:    // dummie_player é um Player
+    case 1:    // dummie_player is a Player
         
         i = go_through_player(players, dummie_player);
-        if (i != -1 && i != array_position) // Encontrou um player na sua posição (que não ele próprio)
+        if (i != -1 && i != array_position) // Found a player in its position that is not himself
         {
             dummie_player->position.x = players[array_position].position.x;
             dummie_player->position.y = players[array_position].position.y;
@@ -382,7 +382,7 @@ int collision_checker(player* players, player* dummie_player, player* bots, rewa
             return 1;
         }
 
-        if (go_through_player(bots, dummie_player) != -1) // Encontrou um bot na sua posição
+        if (go_through_player(bots, dummie_player) != -1) // Found a bot in its position
         {
             dummie_player->position.x = players[array_position].position.x;
             dummie_player->position.y = players[array_position].position.y;
@@ -390,7 +390,7 @@ int collision_checker(player* players, player* dummie_player, player* bots, rewa
         }
 
         i = go_through_rewards(rewards, dummie_player);
-        if (i != -1) // Foi contra um prémio
+        if (i != -1) // Found a prize
         {
             rewards[i].flag = 0;
             dummie_player->health = dummie_player->health + rewards[i].value <= 10 ? dummie_player->health + rewards[i].value  : 10;
@@ -406,6 +406,9 @@ int collision_checker(player* players, player* dummie_player, player* bots, rewa
 
 }
 
+/*
+    Checks if the key pressed by the human client was valid
+*/
 bool check_key(int key){
     if(key==KEY_DOWN || key== KEY_UP || key==KEY_RIGHT || key==KEY_LEFT){
         return true;

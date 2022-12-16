@@ -43,6 +43,7 @@ int main(int argc, char *argv[]){
     int n_bytes;
     int array_pos,x, y;
     int i,aux;
+    bool bot_conected=false;
 
     //Sockets variables
 
@@ -111,15 +112,21 @@ int main(int argc, char *argv[]){
         
         else if (message_received.type == -1) {
             // connect from bot - initialize
-            connected_clients[10]=client_addr;
-            bots[message_received.array_pos].health = 10;
-            do{
-                x = RandInt(1, WINDOW_SIZE-2);
-                y = RandInt(1, WINDOW_SIZE-2);
-            }while(is_free_position(rewards, bots, players, x, y)==false);
+            if(!bot_conected){
+                connected_clients[10]=client_addr;
+                bot_conected=true;
+            }
+            if(strcmp(connected_clients[10].sun_path,client_addr.sun_path)==0){
+                bots[message_received.array_pos].health = 10;
+                do{
+                    x = RandInt(1, WINDOW_SIZE-2);
+                    y = RandInt(1, WINDOW_SIZE-2);
+                }while(is_free_position(rewards, bots, players, x, y)==false);
+                
+                bots[message_received.array_pos].position.x = x;
+                bots[message_received.array_pos].position.y = y;
+            }
             
-            bots[message_received.array_pos].position.x = x;
-            bots[message_received.array_pos].position.y = y;
                           
         }
         else if(message_received.type == 1){
@@ -180,7 +187,7 @@ int main(int argc, char *argv[]){
             if (check_connection(client_addr, connected_clients)==true){
                 //DISCONNECT THE CLIENT FROM THE SERVER
                 array_pos=message_received.array_pos;
-                strcpy(connected_clients[array_pos].sun_path,socket_name);//maybe change this, I just want to reset the memory
+                strcpy(connected_clients[array_pos].sun_path, socket_name);
                 players[array_pos].position.c='1';
                 players[array_pos].health=0;
                 players[array_pos].position.x=-1;

@@ -28,10 +28,11 @@ int main(int argc, char *argv[]){
     strcpy(server_addr.sun_path, socket_name);
     int nBots;  // number of bots
     int i;
-    
+
+    // Gets number of bots from the terminal    
     char* nBotsc = argv[argc-1];
 
-    nBots = atoi(nBotsc);
+    nBots = atoi(nBotsc);   // converts to int
 
 
     if(nBots>10 || nBots<0){
@@ -43,11 +44,11 @@ int main(int argc, char *argv[]){
     m2s.type = -1;
     m2s.id = '*';
 
+    // Initial message
     for (i = 0; i < nBots; i++)
     {
         m2s.array_pos = i;
 
-        // Está incompleto, mas fica a intenção
         sendto(sock_fd, &m2s, sizeof(message_c2s), 0, 
             (const struct sockaddr *) &server_addr, sizeof(server_addr));
     }
@@ -57,11 +58,12 @@ int main(int argc, char *argv[]){
     
     while(1){
 
+    // Generates a new position for each bot every 3 seconds.
+
         sleep((unsigned) 3);
 
         for (i = 0; i < nBots; i++)
         {
-
             m2s.array_pos = i;
             m2s.direction = RandInt(0,3);
             switch (m2s.direction)
