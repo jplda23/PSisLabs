@@ -29,11 +29,19 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
 
-
+    struct sockaddr_un server_addr;
+    server_addr.sun_family = AF_UNIX;
+    strcpy(server_addr.sun_path, socket_name);
     int nBots;  // number of bots
     int i;
+    
+  
 
-    nBots = argv[argc-1];
+    nBots = (int) *argv[argc-1]-'0';
+    if(nBots>10 || nBots<0){
+        printf("Invalid number of bots. \n The programme will shut down :( \n");
+        exit(-1);
+    }
     message_c2s m2s;
 
     m2s.type = -1;
@@ -59,11 +67,28 @@ int main(int argc, char *argv[]){
         {
 
             m2s.array_pos = i;
-            m2s.direction = random()%4;
+            m2s.direction = RandInt(0,3);
+            switch (m2s.direction)
+            {
+            case UP:
+                m2s.direction=KEY_UP;
+                break;
+            case DOWN:
+                m2s.direction=KEY_DOWN;
+                break;
+            case LEFT:
+                m2s.direction=KEY_LEFT;
+                break;
+            case RIGHT:
+                m2s.direction=KEY_RIGHT;
+                break;
+            default:
+                break;
+            }
 
-            // Está incompleto, mas fica a intenção
+            
             sendto(sock_fd, &m2s, sizeof(message_c2s), 0, 
-                (const struct sockaddr *) &server_addr, sizeof(server_addr));                
+                (const struct sockaddr *) &server_addr, sizeof(server_addr));        
         
         }
     }

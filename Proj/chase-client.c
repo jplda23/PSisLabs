@@ -4,9 +4,13 @@ WINDOW * message_win;
 
 player_position_t p1;
 
+
 int main(int argc, char *argv[]){
     
     char* socket_name=argv[argc-1];
+    player players[10];
+    player bots[10];
+    reward rewards[10];
 
     //socket creation and binding
     int sock_fd;
@@ -42,11 +46,15 @@ int main(int argc, char *argv[]){
     recv(sock_fd,&message_from_server, sizeof(message_s2c),0);
     if (message_from_server.type==-1){
         printf("Server is full, please try again soon\n");
+        exit(0);
     }
     else if(message_from_server.type==0){
         printf("You are letter %s, Press ENTER to continue\n", &message_from_server.id);
         message_to_server.array_pos=message_from_server.array_pos;
         message_to_server.id=message_from_server.id;
+        memcpy(players, message_from_server.players,10*sizeof(struct player));
+        memcpy(bots, message_from_server.bots, 10*sizeof(struct player) );
+        memcpy(rewards, message_from_server.rewards, 10*sizeof(struct reward));
         getchar();
     }
     else{
@@ -65,31 +73,48 @@ int main(int argc, char *argv[]){
 	wrefresh(my_win);
     keypad(my_win, true);
     /* creates a window and draws a border */
-    message_win = newwin(5, WINDOW_SIZE, WINDOW_SIZE, 0);
+    message_win = newwin(10, WINDOW_SIZE, WINDOW_SIZE, 0);
     box(message_win, 0 , 0);	
 	wrefresh(message_win);
 
+    draw_board(my_win, players, message_from_server.players, bots, message_from_server.bots, rewards, message_from_server.rewards);
 
-    new_player(&p1, 'y');
-    draw_player(my_win, &p1, true);
-
-    int key = -1;
+    int i,key = -1;
     while(key != 27 && key!= 'q'){
         key = wgetch(my_win);		
         if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN){
-            draw_player(my_win, &p1, false);
-            moove_player (&p1, key);
-            draw_player(my_win, &p1, true);
+            message_to_server.type=1;
+            message_to_server.direction=key;
+            sendto(sock_fd, &message_to_server, sizeof(message_c2s), 0, 
+            (const struct sockaddr *)&server_addr, sizeof(server_addr));
+            recv(sock_fd,&message_from_server, sizeof(message_s2c),0);
+            if (message_from_server.type==1){
+                draw_board(my_win, players, message_from_server.players, bots, message_from_server.bots, rewards, message_from_server.rewards);
+                for(i=0;i<10;i++){
+                    if(players[i].health>0){
+                        mvwprintw(message_win, i+1,1,"%c %d", players[i].position.c, message_from_server.players[i].health);
+                    }
+                }
+                memcpy(players, message_from_server.players,10*sizeof(struct player));
+                memcpy(bots, message_from_server.bots, 10*sizeof(struct player) );
+                memcpy(rewards, message_from_server.rewards, 10*sizeof(struct reward));
+            }
+            if( message_from_server.type==2){
+                mvwprintw(message_win, 1,1,"you died");
+                break;
+            }
 
         }
 
         //mvwprintw(message_win, 1,1,"%c key pressed", key);
         wrefresh(message_win);	
     }
-    
-    message_to_server.type=2; //disconnect type
-    sendto(sock_fd, &message_to_server, sizeof(message_c2s), 0, 
-                (const struct sockaddr *)&server_addr, sizeof(server_addr));
+    if(key=='q'){
+        message_to_server.type=2; //disconnect type
+        sendto(sock_fd, &message_to_server, sizeof(message_c2s), 0, 
+                    (const struct sockaddr *)&server_addr, sizeof(server_addr));
+    }
+    printf("Good Game!\n");
 
     exit(0);
 }
