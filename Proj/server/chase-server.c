@@ -87,16 +87,17 @@ int main(int argc, char *argv[]){
         if (message_received.type==0){
             //initiate player in array
             array_pos=get_player_input_array_position(players, 10);
-            if(array_pos==-1){
+            if(array_pos==-1){ //if there is no space available in the server sends a error message
                 message_to_send.type=-1;
                 sendto(sock_fd, &message_to_send, sizeof(message_s2c), 0, 
                 (const struct sockaddr *) &client_addr, client_addr_size);
             }
-            else{
+            else{ // if there is, initiates a player in the server and loads relevant information to the message to send
                 players[array_pos].health=10;
                 do{
                     new_player(&players[array_pos].position, players, bots, rewards, RandInt('A','Z')); 
-                }while(already_existent_char(players,players[array_pos].position.c)!=1);
+                }while(already_existent_char(players,players[array_pos].position.c)!=1);// cycle 
+
                 connected_clients[array_pos]=client_addr;
                 message_to_send.type=0;
                 memcpy( message_to_send.players,players, 10*sizeof(struct player));
@@ -130,10 +131,10 @@ int main(int argc, char *argv[]){
             if(check_key(message_received.direction)==false){
                 continue;
             }
-            if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
-            continue;
-            }
             if(check_connection(client_addr, connected_clients)==true){ //IS HUMAN AND WILL UPDATE THE HUMAN, WILL HAVE TO INTRODUCE A CHEATER CHECK TOO
+                if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
+                    continue;
+                }
                 array_pos=message_received.array_pos;
                 if (players[array_pos].health==0){//CHECK IF IT WAS KILLED BETWEEN MESSAGES
                     message_to_send.type=2;
@@ -184,10 +185,10 @@ int main(int argc, char *argv[]){
         }
 
         else if (message_received.type == 2){
-            if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
-            continue;
-            }
             if (check_connection(client_addr, connected_clients)==true){
+                if (check_cheating(players[array_pos].position.c, message_received.id , client_addr, connected_clients, array_pos)){
+                    continue;
+                }
                 //DISCONNECT THE CLIENT FROM THE SERVER
                 array_pos=message_received.array_pos;
                 strcpy(connected_clients[array_pos].sun_path, socket_name);
