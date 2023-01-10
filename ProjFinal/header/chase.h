@@ -13,6 +13,10 @@
 #include <sys/un.h>
 #include <time.h>
 #include <pthread.h>
+#include<arpa/inet.h>
+#include <stdio.h>
+
+
 
 typedef struct player_position_t{
     int x, y;
