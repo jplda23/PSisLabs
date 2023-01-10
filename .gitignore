@@ -9,3 +9,4 @@ Proj/Group26/header/chase.h
 Proj/Group26/human-client/chase-client.c
 Proj/Group26/Makefile
 Proj/Group26/server/chase-server.c
+*.Identifier
