@@ -1,20 +1,20 @@
 #include "../header/chase.h"
 
 int NPlayers, NBots;
-player players[(WINDOW_SIZE-1)*(WINDOW_SIZE-1)]; //Assuming 0 Bots and 0 prizes, max possible size of vector
-player bots[10];//max possible size of vector
+player players[((WINDOW_SIZE-1)*(WINDOW_SIZE-1)/9)]; //Assuming 0 Bots and 0 prizes, max possible size of vector
+player bots[NBOTS];//max possible size of vector
 reward rewards[10];
 
 
-void* thread_prizes(void* thread_arg){
-    board= (*struct Board)* thread_arg;
-    init_rewards_board(rewards, players, bots);
-}
+// void* thread_prizes(void* thread_arg){
+//     board= (*struct Board)* thread_arg;
+//     init_rewards_board(rewards, players, bots);
+// }
 
 int main(int argc, char *argv[]){
 
     int sock_fd;
-	sock_fd= socket(AF_INET, SOCK_DGRAM, 0);
+	sock_fd= socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd == -1){
 		perror("socket: ");
 		exit(-1);
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]){
 	struct sockaddr_in local_addr;
 	local_addr.sin_family = AF_INET;
 	local_addr.sin_port = htons(atoi(socket_port));
-    inet_pton(AF_INET, socket_address, &local_addr.sin_addr);
+    inet_pton(AF_INET, socket_address, &local_addr.sin_addr.s_addr);
 	// local_addr.sin_addr.s_addr = socket_address;
 
 
@@ -43,42 +43,25 @@ int main(int argc, char *argv[]){
 	printf(" socket created and binded \n ");
 	printf("Ready to receive messages\n");
 
-    NBots= atoi(argv[argc-1]);
-    NPlayers=(WINDOW_SIZE-1)*(WINDOW_SIZE-1)-NBots-10;
-    //Board variables
-    player dummy_player;
+    int nbytes;
+    char buffer[100];
+    char remote_addr_str[100];
+    int client_fd;
 
-    //Board initialization
+    while(1){   
 
-    // init_players_health(players);
-    // init_bots_health(bots);    
-    // init_rewards_board(rewards, players, bots);
+        listen(sock_fd,5);
+        client_fd=accept(sock_fd, NULL, NULL);
 
-    // Thread Variables
-    pthread_t thread_players[NPlayers];
-    pthread_t thread_bots;
-    pthread_t thread_prizes;
+        // nbytes = recvfrom(sock_fd, buffer, 100, 0,
+		//                   ( struct sockaddr *)&client_addr, &client_addr_size);
+        nbytes= recv(client_fd,buffer, sizeof(buffer),0);
+		if(nbytes<0){
+            perror("ERROR receiving data fro socket");
+        }
 
-
-    //INIT NCURSES
-
-    initscr();		    	/* Start curses mode 		*/
-	cbreak();				/* Line buffering disabled	*/
-    keypad(stdscr, TRUE);   /* We get F1, F2 etc..		*/
-	noecho();			    /* Don't echo() while we do getch */
-
-    /* creates a window and draws a border */
-    WINDOW * my_win = newwin(WINDOW_SIZE, WINDOW_SIZE, 0, 0);
-    box(my_win, 0 , 0);	
-	wrefresh(my_win);
-    WINDOW * message_win = newwin(10, WINDOW_SIZE, WINDOW_SIZE, 0);
-    box(message_win, 0 , 0);	
-	wrefresh(message_win);
-
-
-
-    while(1){
-
+		printf("received %d bytes from %s \n", nbytes,buffer);
+		
 
     }
 }

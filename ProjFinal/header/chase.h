@@ -1,5 +1,6 @@
 #define WINDOW_SIZE 20
 #define FIFO_NAME "/tmp/fifo_chase"
+#define NBOTS 10
 
 
 #include <stdlib.h>
