@@ -3,7 +3,7 @@
 int NPlayers, NBots;
 player_t players[((WINDOW_SIZE-1)*(WINDOW_SIZE-1)/9)]; //Assuming 0 Bots and 0 prizes, max possible size of vector
 player_t bots[NBOTS];//max possible size of vector
-reward rewards[10];
+reward_t rewards[10];
 playerList_t *listInit;
 
 
@@ -12,10 +12,12 @@ playerList_t *listInit;
 void* thread_players(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
 	int self_client_connection=args->self_client_fd;
-	
+	int bytes_received;
+	playerList_t* aux;
+
 	char buffer[1024];
 	while(self_client_connection){
-		int bytes_received = recv(self_client_connection, buffer, sizeof(buffer), 0);
+		bytes_received = recv(self_client_connection, buffer, sizeof(buffer), 0);
 		if (bytes_received < 0) {
 			perror("Error receiving data from client");
 			exit(EXIT_FAILURE);
@@ -26,10 +28,39 @@ void* thread_players(void* arg){
 	}
     // Close the connection
     close(self_client_connection);
-    free(arg);
+    free(args);
 
     return NULL;
 }
+
+void* thread_rewards(void* arg){
+	thread_args_t *args= (thread_args_t*) arg;
+	int i,x,y;
+	//create first five rewards
+	init_rewards_board(args->rewards, args->bots, args->list_of_players);
+
+	while(1){
+		usleep(5);
+		for(i=0;i<10;i++){
+			if(args->rewards[i].flag==0){
+				args->rewards[i].flag=1;
+				args->rewards[i].value= RandInt(1,5);
+				do{
+                    x=RandInt(1,WINDOW_SIZE-2);
+                    y=RandInt(1,WINDOW_SIZE-2);
+                }while(is_free_position(rewards,bots, players, x, y)==false);
+				args->rewards[i].x=x;
+                args->rewards[i].y=y;
+				// function to send to all players
+				break;
+			}
+		}
+	}
+
+}
+ void* thread_bots(void* arg){
+	thread_args_t *args= (thread_args_t*) arg;
+ }
 
 int main(int argc, char *argv[]){
 
@@ -57,9 +88,6 @@ int main(int argc, char *argv[]){
 	local_addr.sin_family = AF_INET;
 	local_addr.sin_port = htons(atoi(socket_port));
     inet_pton(AF_INET, socket_address, &local_addr.sin_addr.s_addr);
-	// local_addr.sin_addr.s_addr = socket_address;
-
-
 
 	int err = bind(sock_fd, (struct sockaddr *)&local_addr,
 							sizeof(local_addr));
@@ -67,8 +95,6 @@ int main(int argc, char *argv[]){
 		perror("bind");
 		exit(-1);
 	}
-
-
 
 	printf(" socket created and binded \n ");
 	printf("Ready to receive messages\n");

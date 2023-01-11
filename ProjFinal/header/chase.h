@@ -57,11 +57,11 @@ typedef struct playerList_t {
     struct playerList_t* next;
 } playerList_t;
 
-typedef struct reward{
+typedef struct reward_t{
     int flag; // 0-not exists or eaten | 1-exists
     int x,y;
     int value;
-}reward;
+}reward_t;
 
 /*
     Message Server to Client
@@ -78,6 +78,8 @@ typedef struct thread_args_t{
     int self_client_fd;
     pthread_t self_thread_id;
     playerList_t* list_of_players;
+    reward_t* rewards;
+    player_t* bots;
 } thread_args_t;
 
 int addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
