@@ -69,7 +69,7 @@ typedef struct reward_t{
 typedef struct message_s2c{
     int type; //-1 no more clients allowed | 0 ball info | 2 player_new | 3 player_update | 3 bots info | 4 reward info
     player_t player_dummy;
-    struct reward rewards[10];
+    reward_t rewards[10];
     player_t bots[10];
     
 } message_s2c;
@@ -181,15 +181,15 @@ void new_player (player_position_t * player, playerList_t* initList, player_t* b
     do{
         x = RandInt(1, WINDOW_SIZE-2);
         y = RandInt(1, WINDOW_SIZE-2);
-    }while(is_free_position(rewards, bots, listInit, x, y)==false);
+    }while(is_free_position(rewards, bots, initList, x, y)==false);
     player->x=x;
     player->y=y;     
     player->c = c;
 }
 
-void draw_player(WINDOW *win, player_position_t * player, int delete){
+void draw_player(WINDOW *win, player_position_t * player, int deleteVar){
     int ch;
-    if(delete){
+    if(deleteVar){
         ch = player->c;
     }else{
         ch = ' ';
@@ -225,10 +225,10 @@ void move_player (player_position_t * player, int direction){
     }
 }
 
-void delete_and_draw_board(WINDOW* window,WINDOW* message_win, playerList_t* listInit, player_t* bots, reward* rewards){
+void delete_and_draw_board(WINDOW* window,WINDOW* message_win, playerList_t* listInit, player_t* bots, reward_t* rewards){
     int i,aux=1;
     player_position_t dummy_player;
-    playerList_t* aux;
+    playerList_t* auxPlayer;
     werase(window);
     werase(message_win);
     box(window, 0 , 0);	
@@ -247,11 +247,11 @@ void delete_and_draw_board(WINDOW* window,WINDOW* message_win, playerList_t* lis
         }
     }
 
-    for( aux = listInit; aux->next != NULL; aux = aux->next) {
+    for( auxPlayer = listInit; auxPlayer->next != NULL; auxPlayer = auxPlayer->next) {
     
-        if(aux->next->player.health > 0 ){
-            draw_player(window, &aux->next->player.position, true);//draw new
-            mvwprintw(message_win, aux,1,"%c %d ", aux->next->player.position.c, aux->next->player.health);
+        if(auxPlayer->next->player.health > 0 ){
+            draw_player(window, &auxPlayer->next->player.position, true);//draw new
+            mvwprintw(message_win, aux,1,"%c %d ", auxPlayer->next->player.position.c, auxPlayer->next->player.health);
             aux++;
         }
 
@@ -261,7 +261,7 @@ void delete_and_draw_board(WINDOW* window,WINDOW* message_win, playerList_t* lis
 
 }
 
-void init_bots_health(player* bot_n){
+void init_bots_health(player_t* bot_n){
     int i;
     for(i=0;i<10;i++){
         bot_n[i].health=0;
@@ -271,7 +271,7 @@ void init_bots_health(player* bot_n){
     }
 }
 
-void init_rewards_board(reward* reward_n, player* bots, playerList_t* listInit){
+void init_rewards_board(reward_t* reward_n, player_t* bots, playerList_t* listInit){
     int i,x,y;
     for(i=0;i<10;i++){
         reward_n[i].flag=0;
@@ -292,6 +292,7 @@ void init_rewards_board(reward* reward_n, player* bots, playerList_t* listInit){
 
 int already_existent_char(playerList_t* listInit, char c){//returns the number of players with that char, expect result 1
     int i, count=0;
+    playerList_t* aux;
 
     for( aux = listInit; aux->next != NULL; aux = aux->next) {
     
@@ -299,5 +300,135 @@ int already_existent_char(playerList_t* listInit, char c){//returns the number o
             count++;
     }
     return count;
+}
+
+playerList_t* go_through_player(playerList_t* listInit, player_t* dummy_player){
+
+    int i;
+
+    playerList_t* aux;
+
+    for( aux = listInit; aux->next != NULL; aux = aux->next) {
+    
+        if (aux->next->player.position.x == dummy_player->position.x && aux->next->player.position.y == dummy_player->position.y)
+        {
+            return aux->next;
+        }  
+    }
+    return NULL;
+}
+
+int go_through_bots(player_t* bots, player_t* dummy_player){
+
+    int i;
+
+    for (i = 0; i < 10; i++)
+    {
+        if (bots[i].health == 0)
+            continue;
+        else if (bots[i].position.x == dummy_player->position.x && bots[i].position.y == dummy_player->position.y)
+            return i;        
+    }
+
+    return -1;
+    
+}
+
+int go_through_rewards(reward_t* rewards, player_t* dummy_player){
+
+    int i;
+
+    for (i = 0; i < 10; i++)
+    {
+        if (rewards[i].flag == 0)
+            continue;
+        else if (rewards[i].x == dummy_player->position.x && rewards[i].y == dummy_player->position.y)
+            return i;        
+    }
+    return -1;
+}
+
+int collision_checker(playerList_t* listInit, player_t* dummie_player, player_t* bots, reward_t* rewards, int is_player, int array_position) {
+
+    int i;
+    playerList_t* aux, *aux2;
+
+    switch (is_player)
+    {
+    case 0:     // dummie_player is a bot
+
+        aux = go_through_player(listInit, dummie_player);//Test vs players
+        if (aux != NULL) // Found a player in its position
+        {
+            dummie_player->position.x = bots[array_position].position.x;
+            dummie_player->position.y = bots[array_position].position.y;
+            aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
+            return 1;
+        }
+
+        if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
+        {
+            dummie_player->position.x = bots[array_position].position.x;
+            dummie_player->position.y = bots[array_position].position.y;
+            return 1;
+        }
+
+        if (go_through_rewards(rewards, dummie_player) != -1) // Found a prize
+        {
+            dummie_player->position.x = bots[array_position].position.x;
+            dummie_player->position.y = bots[array_position].position.y;
+            return 2;        
+        }       
+        
+        break;
+
+    case 1:    // dummie_player is a Player
+        
+        aux = go_through_player(listInit, dummie_player);
+        if (aux != NULL && aux->player.position.c != dummie_player->position.c) // Found a player in its position that is not himself
+        {
+            // aux is the player that was hit
+            // aux2 is the play that hits
+
+            aux2 = findInList(listInit, dummie_player->position.c);
+
+            dummie_player->position.x = aux2->player.position.x;
+            dummie_player->position.y = aux2->player.position.y;
+            dummie_player->health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
+            aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
+            return 1;
+        }
+
+        if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
+        {
+            aux2 = findInList(listInit, dummie_player->position.c);
+
+            dummie_player->position.x = aux2->player.position.x;
+            dummie_player->position.y = aux2->player.position.y;
+            return 1;
+        }
+
+        i = go_through_rewards(rewards, dummie_player);
+        if (i != -1) // Found a prize
+        {
+            rewards[i].flag = 0;
+            dummie_player->health = dummie_player->health + rewards[i].value <= 10 ? dummie_player->health + rewards[i].value  : 10;
+            return 2;
+        } 
+
+        break;    
+    
+    default:
+        break;
+    }
+    return 0;
+
+}
+
+bool check_key(int key){
+    if(key==KEY_DOWN || key== KEY_UP || key==KEY_RIGHT || key==KEY_LEFT){
+        return true;
+    }
+    return false;
 }
 
