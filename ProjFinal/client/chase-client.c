@@ -41,4 +41,6 @@ int main(int argc, char *argv[]){
 		printf("\nsent %d bytes as %s\n\n", nbytes, message);
 	} while (message[0] != 'q');
 
+	close(sock_fd);
+
 }

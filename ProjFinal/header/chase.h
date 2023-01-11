@@ -151,3 +151,153 @@ playerList_t* findInList(playerList_t* listInit, char charToFind) {
     }
     return NULL;    
 }
+
+
+
+bool is_free_position(reward_t* rewards, player_t* bots, playerList_t* listInit, int x, int y){
+    int i;
+    playerList_t* aux;
+
+    for(i=0;i<10;i++){
+        if(bots[i].position.x==x && bots[i].position.y == y)
+            return false;
+        if(rewards[i].x==x && rewards[i].y==y)
+            return false;
+    }
+
+    if (listInit != NULL){
+
+            for( aux = listInit; aux->next != NULL; aux = aux->next) {
+
+                if(aux->next->player.position.x == x && aux->next->player.position.y == y)
+                    return false;
+            }
+    }
+    return true;
+}
+
+void new_player (player_position_t * player, playerList_t* initList, player_t* bots, reward_t* rewards, char c){
+    int x,y;
+    do{
+        x = RandInt(1, WINDOW_SIZE-2);
+        y = RandInt(1, WINDOW_SIZE-2);
+    }while(is_free_position(rewards, bots, listInit, x, y)==false);
+    player->x=x;
+    player->y=y;     
+    player->c = c;
+}
+
+void draw_player(WINDOW *win, player_position_t * player, int delete){
+    int ch;
+    if(delete){
+        ch = player->c;
+    }else{
+        ch = ' ';
+    }
+    int p_x = player->x;
+    int p_y = player->y;
+    wmove(win, p_y, p_x);
+    waddch(win,ch);
+    wrefresh(win);
+}
+
+void move_player (player_position_t * player, int direction){
+    if (direction == KEY_UP){
+        if (player->y  != 1){
+            player->y --;
+        }
+    }
+    if (direction == KEY_DOWN){
+        if (player->y  != WINDOW_SIZE-2){
+            player->y ++;
+        }
+    }
+    
+
+    if (direction == KEY_LEFT){
+        if (player->x  != 1){
+            player->x --;
+        }
+    }
+    if (direction == KEY_RIGHT)
+        if (player->x  != WINDOW_SIZE-2){
+            player->x ++;
+    }
+}
+
+void delete_and_draw_board(WINDOW* window,WINDOW* message_win, playerList_t* listInit, player_t* bots, reward* rewards){
+    int i,aux=1;
+    player_position_t dummy_player;
+    playerList_t* aux;
+    werase(window);
+    werase(message_win);
+    box(window, 0 , 0);	
+    box(message_win, 0 , 0);
+
+    for(i=0;i<10;i++){
+        if(rewards[i].flag==1){//if exists draws
+            dummy_player.x=rewards[i].x; //creates a player variable, to draw a reward, reuse«ing the function draw player
+            dummy_player.y=rewards[i].y;
+            dummy_player.c=rewards[i].value+'0';
+            draw_player(window, &dummy_player, true );
+        }
+        if(bots[i].health==10){//IF is an active bot
+            draw_player(window, &bots[i].position, true);//draw new
+            
+        }
+    }
+
+    for( aux = listInit; aux->next != NULL; aux = aux->next) {
+    
+        if(aux->next->player.health > 0 ){
+            draw_player(window, &aux->next->player.position, true);//draw new
+            mvwprintw(message_win, aux,1,"%c %d ", aux->next->player.position.c, aux->next->player.health);
+            aux++;
+        }
+
+    }
+    wrefresh(window);
+    wrefresh(message_win);
+
+}
+
+void init_bots_health(player* bot_n){
+    int i;
+    for(i=0;i<10;i++){
+        bot_n[i].health=0;
+        bot_n[i].position.c='*';
+        bot_n[i].position.x=-1;
+        bot_n[i].position.y=-1;
+    }
+}
+
+void init_rewards_board(reward* reward_n, player* bots, playerList_t* listInit){
+    int i,x,y;
+    for(i=0;i<10;i++){
+        reward_n[i].flag=0;
+        reward_n[i].x=-1;
+        reward_n[i].y=-1;
+    }
+    for(i=0;i<5;i++){
+        reward_n[i].value=RandInt(1,5);
+        reward_n[i].flag=1;
+        do{
+        x=RandInt(1,WINDOW_SIZE-2);
+        y=RandInt(1,WINDOW_SIZE-2);
+        }while(is_free_position(reward_n, bots, listInit, x, y)==false);
+        reward_n[i].x=x;
+        reward_n[i].y=y;
+    }
+}
+
+int already_existent_char(playerList_t* listInit, char c){//returns the number of players with that char, expect result 1
+    int i, count=0;
+
+    for( aux = listInit; aux->next != NULL; aux = aux->next) {
+    
+        if (aux->next->player.position.c == c)
+            count++;
+    }
+    return count;
+}
+
