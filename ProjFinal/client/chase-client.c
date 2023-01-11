@@ -39,6 +39,6 @@ int main(int argc, char *argv[]){
 							(const struct sockaddr *) &server_addr, sizeof(server_addr));
 
 		printf("\nsent %d bytes as %s\n\n", nbytes, message);
-	} while (message[0] != 'q')
+	} while (message[0] != 'q');
 
 }
