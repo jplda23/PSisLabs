@@ -29,13 +29,16 @@ int main(int argc, char *argv[]){
 	}
 
     char message[100];
-    strcpy(message, "string test");
-    printf("%s \n", message);
 
-    nbytes = sendto(sock_fd,
-	                    message, strlen(message)+1, 0,
-	                    (const struct sockaddr *) &server_addr, sizeof(server_addr));
+	do	
+	{
+		fgets(message, 100, stdin);
 
-    printf("\nsent %d %s\n\n", nbytes, message);
+		nbytes = sendto(sock_fd,
+							message, strlen(message)+1, 0,
+							(const struct sockaddr *) &server_addr, sizeof(server_addr));
+
+		printf("\nsent %d bytes as %s\n\n", nbytes, message);
+	} while (message[0] != 'q')
 
 }
