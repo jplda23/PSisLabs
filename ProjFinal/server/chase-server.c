@@ -14,9 +14,12 @@ void* thread_players(void* arg){
 	int self_client_connection=args->self_client_fd;
 	
 	char buffer[1024];
-	while(self_client_connection){
+
+
+	while( 1 ){
+
 		int bytes_received = recv(self_client_connection, buffer, sizeof(buffer), 0);
-		if (bytes_received < 0) {
+		if (bytes_received <= 0) {
 			perror("Error receiving data from client");
 			exit(EXIT_FAILURE);
 		}
