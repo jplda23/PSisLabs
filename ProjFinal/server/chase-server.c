@@ -18,10 +18,11 @@ void* thread_players(void* arg){
 	message_s2c_t message_to_send;
 	message_c2s_t message_from_client;
 
+	printf("Entrei na fucking thread \n");
 
 	do{
 		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z')); 
-	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=1);// cycle
+	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=0);// cycle
 	printf("1\n");
 	newplayer.thread_player = args->self_thread_id;
 	newplayer.client_fd_player = args->self_client_fd;
