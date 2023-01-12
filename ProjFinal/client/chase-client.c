@@ -9,54 +9,65 @@ void* thread_listenner(void* arg){
 	playerList_t dummy_player;
 	message_s2c_t message_received;
 	message_c2s_t message_to_server;
+	int nbytes;
 
 	dummy_player.client_fd_player=0;
 	dummy_player.thread_player=0;
 	while(1){
-		if(recv(sock_fd, &message_received , sizeof(message_c2s_t), 0)<0){
+		nbytes=recv(sock_fd, &message_received , sizeof(message_s2c_t), 0);
+		if(nbytes<0){
 			perror("Error receiving message from server");
+			exit(-1);
 		}
-		printf("%d",message_received.type);
-		switch(message_received.type){
-			case -1:
-				printf("-1 \n");
-				perror("not possible to play, to many players");
-				exit(-1);
-			
-			case 0:
-				printf("0\n");
-				//probably lock
-				My_player.player =message_received.player_dummy;
-				My_player.thread_player=0;
-				My_player.client_fd_player=0;
-				addToListEnd(listInnit, My_player);
-				printf("0.1\n");
-				printf("Your character is %c press Enter to continue\n", My_player.player.position.c);
-				getchar();
-				message_to_server.type=0;
-				printf("0.2\n");
-				send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-				printf("0.3\n");
-				//unlock
-			
-			case 1:
-				printf("1\n");
-				dummy_player.player=message_received.player_dummy;
-				addToListEnd(listInnit, dummy_player);
-			
-			case 2:
-				printf("2\n");
-				dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
-				dummy_pointer->player=message_received.player_dummy;
+		else{
+			switch(message_received.type){
+				case -1:
+					printf("-1 \n");
+					perror("not possible to play, to many players");
+					exit(-1);
+					break;
+				
+				case 0:
+					printf("0\n");
+					//probably lock
+					My_player.player =message_received.player_dummy;
+					printf("%d\n",My_player.player.health);
+					My_player.thread_player=0;
+					My_player.client_fd_player=0;
+					addToListEnd(listInnit, My_player);
+					printf("0.1\n");
+					printf("Your character is %c press Enter to continue\n", My_player.player.position.c);
+					getchar();
+					message_to_server.type=0;
+					printf("0.2\n");
+					send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
+					printf("0.3\n");
+					//unlock
+					break;
+				
+				case 1:
+					printf("1\n");
+					dummy_player.player=message_received.player_dummy;
+					addToListEnd(listInnit, dummy_player);
+					break;
+				
+				case 2:
+					printf("2\n");
+					dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
+					dummy_pointer->player=message_received.player_dummy;
+					break;
 
-			case 3:
-				printf("3\n");
-				memcpy(args->bots, &message_received.bots, 10*sizeof(player_t));
+				case 3:
+					printf("3\n");
+					memcpy(args->bots, &message_received.bots, 10*sizeof(player_t));
+					break;
 
-			case 4:
-				printf("4\n");
-				memcpy(args->rewards, &message_received.rewards, 10*sizeof(reward_t));
+				case 4:
+					printf("4\n");
+					memcpy(args->rewards, &message_received.rewards, 10*sizeof(reward_t));
+					break;
 
+			}
 		}
 	}
 
@@ -96,6 +107,7 @@ int main(int argc, char *argv[]){
 
     char message[100];
 	thread_args_t args;
+	args.self_client_fd=sock_fd;
 	args.list_of_players=listInnit;
 	args.bots=bots;
 	args.rewards=rewards;
