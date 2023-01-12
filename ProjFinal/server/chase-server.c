@@ -1,7 +1,6 @@
 #include "../header/chase.h"
 
 int NPlayers, NBots;
-player_t players[((WINDOW_SIZE-1)*(WINDOW_SIZE-1)/9)]; //Assuming 0 Bots and 0 prizes, max possible size of vector
 player_t bots[NBOTS];//max possible size of vector
 reward_t rewards[10];
 playerList_t *listInit;
@@ -21,11 +20,17 @@ void* thread_players(void* arg){
 	printf("Entrei na fucking thread \n");
 
 	do{
-		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z')); 
+		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z'));
+		printf("Cheguei ao new_player\n");
 	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=0);// cycle
+	printf("char: %c \n", newplayer.player.position.c);
+	printf("Position x: %d \n", newplayer.player.position.x);
+	printf("Position y: %d \n", newplayer.player.position.y);
 	printf("1\n");
 	newplayer.thread_player = args->self_thread_id;
 	newplayer.client_fd_player = args->self_client_fd;
+	newplayer.player.health = 10;
+
 	printf("2\n");
 	message_to_send.type = 1;
 	for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
@@ -53,7 +58,9 @@ void* thread_players(void* arg){
 	printf("7\n");
 	if(message_from_client.type == 0)
 		addToListEnd(args->list_of_players, newplayer);
+	printf("1º player char: %c \n", args->list_of_players->next->player.position.c);
 	printf("8\n");
+
 	while( 1 ){
 
 		if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
@@ -144,9 +151,13 @@ int main(int argc, char *argv[]){
     while(1){
 		args = malloc(sizeof(thread_args_t));
         args->self_client_fd=accept(sock_fd, NULL, NULL);
+		args->list_of_players = listInit;
+		args->bots = bots;
+		args->rewards = rewards;
 		if(pthread_create(&(args->self_thread_id), NULL, thread_players, (void *)args)!=0){
 			perror("Error while creating Thread");
 		}
+		printf("Criei uma thread|! \n");
 
         // nbytes = recvfrom(sock_fd, buffer, 100, 0,
 		//                   ( struct sockaddr *)&client_addr, &client_addr_size);
