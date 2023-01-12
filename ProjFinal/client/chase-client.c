@@ -16,35 +16,45 @@ void* thread_listenner(void* arg){
 		if(recv(sock_fd, &message_received , sizeof(message_c2s_t), 0)<0){
 			perror("Error receiving message from server");
 		}
+		print("%d",message_received.type);
 		switch(message_received.type){
 			case -1:
+				print('-1');
 				perror("not possible to play, to many players");
 				exit(-1);
 			
 			case 0:
+				print('0');
 				//probably lock
 				My_player.player =message_received.player_dummy;
 				My_player.thread_player=0;
 				My_player.client_fd_player=0;
 				addToListEnd(listInnit, My_player);
+				print('0.1');
 				printf("Your character is %c press Enter to continue\n", My_player.player.position.c);
 				getchar();
 				message_to_server.type=0;
+				print('0.2');
 				send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
+				print('0.3');
 				//unlock
 			
 			case 1:
+				print('1');
 				dummy_player.player=message_received.player_dummy;
 				addToListEnd(listInnit, dummy_player);
 			
 			case 2:
+				print('2');
 				dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
 				dummy_pointer->player=message_received.player_dummy;
 
 			case 3:
+				print('3');
 				memcpy(args->bots, &message_received.bots, 10*sizeof(player_t));
 
 			case 4:
+				print('4');
 				memcpy(args->rewards, &message_received.rewards, 10*sizeof(reward_t));
 
 		}
