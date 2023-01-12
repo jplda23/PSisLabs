@@ -22,44 +22,44 @@ void* thread_players(void* arg){
 	do{
 		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z')); 
 	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=1);// cycle
-	print('1');
+	printf('1\n');
 	newplayer.thread_player = args->self_thread_id;
 	newplayer.client_fd_player = args->self_client_fd;
-	print('2');
+	printf('2\n');
 	message_to_send.type = 1;
 	for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
 
 		message_to_send.player_dummy = aux->next->player;
 		write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
 	}
-	print('3');
+	printf('3\n');
 	message_to_send.type = 3;
 	memcpy(message_to_send.bots, args->bots, 10*sizeof(player_t));
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	print('4');
+	printf('4\n');
 	message_to_send.type = 4;
 	memcpy(message_to_send.rewards, args->rewards, 10*sizeof(player_t));
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	print('5');
+	printf('5\n');
 	message_to_send.type = 0;
 	message_to_send.player_dummy = newplayer.player;
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	print('6');
+	printf('6\n');
 	if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 		perror("Error receiving data from client");
 		exit(EXIT_FAILURE);
 	}
-	print('7');
+	printf('7\n');
 	if(message_from_client.type == 0)
 		addToListEnd(args->list_of_players, newplayer);
-	print('8');
+	printf('8\n');
 	while( 1 ){
 
 		if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 			perror("Error receiving data from client");
 			exit(EXIT_FAILURE);
 		}
-		print("%d",message_from_client.id);
+		printf("%d \n",message_from_client.id);
 	}
     // Close the connection
     close(self_client_connection);

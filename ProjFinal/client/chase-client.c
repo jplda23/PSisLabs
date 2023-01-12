@@ -19,42 +19,42 @@ void* thread_listenner(void* arg){
 		print("%d",message_received.type);
 		switch(message_received.type){
 			case -1:
-				print('-1');
+				printf('-1 \n');
 				perror("not possible to play, to many players");
 				exit(-1);
 			
 			case 0:
-				print('0');
+				printf('0\n');
 				//probably lock
 				My_player.player =message_received.player_dummy;
 				My_player.thread_player=0;
 				My_player.client_fd_player=0;
 				addToListEnd(listInnit, My_player);
-				print('0.1');
+				printf('0.1\n');
 				printf("Your character is %c press Enter to continue\n", My_player.player.position.c);
 				getchar();
 				message_to_server.type=0;
-				print('0.2');
+				printf('0.2\n');
 				send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-				print('0.3');
+				printf('0.3\n');
 				//unlock
 			
 			case 1:
-				print('1');
+				printf('1\n');
 				dummy_player.player=message_received.player_dummy;
 				addToListEnd(listInnit, dummy_player);
 			
 			case 2:
-				print('2');
+				printf('2\n');
 				dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
 				dummy_pointer->player=message_received.player_dummy;
 
 			case 3:
-				print('3');
+				printf('3\n');
 				memcpy(args->bots, &message_received.bots, 10*sizeof(player_t));
 
 			case 4:
-				print('4');
+				printf('4\n');
 				memcpy(args->rewards, &message_received.rewards, 10*sizeof(reward_t));
 
 		}
