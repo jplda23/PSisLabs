@@ -38,12 +38,11 @@ int RandInt(int low, int high) {
 /*
     Message Client to Server
 */
-typedef struct message_c2s{
+typedef struct message_c2s_t{
     int type; // -1-connect bot | 0-connect human | 1-info | 2 - continue game
-    int array_pos; // position of the sender in the player/bot array
     char id;\
     direction_t direction;
-} message_c2s;
+} message_c2s_t;
 
 typedef struct player_t{
     int health;// 0 - player is dead 
@@ -66,13 +65,13 @@ typedef struct reward_t{
 /*
     Message Server to Client
 */
-typedef struct message_s2c{
-    int type; //-1 no more clients allowed | 0 ball info | 2 player_new | 3 player_update | 3 bots info | 4 reward info
+typedef struct message_s2c_t{
+    int type; //-1 no more clients allowed | 0 ball info | 1 player_new | 2 player_update | 3 bots info | 4 reward info
     player_t player_dummy;
     reward_t rewards[10];
     player_t bots[10];
     
-} message_s2c;
+} message_s2c_t;
 
 typedef struct thread_args_t{
     int self_client_fd;
@@ -81,6 +80,7 @@ typedef struct thread_args_t{
     reward_t* rewards;
     player_t* bots;
 } thread_args_t;
+
 
 int addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
 
@@ -348,7 +348,7 @@ int go_through_rewards(reward_t* rewards, player_t* dummy_player){
     return -1;
 }
 
-int collision_checker(playerList_t* listInit, player_t* dummie_player, player_t* bots, reward_t* rewards, int is_player, int array_position) {
+playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player, player_t* bots, reward_t* rewards, int is_player, int array_position) {
 
     int i;
     playerList_t* aux, *aux2;
@@ -363,21 +363,21 @@ int collision_checker(playerList_t* listInit, player_t* dummie_player, player_t*
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
             aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
-            return 1;
+            return NULL;
         }
 
         if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
         {
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
-            return 1;
+            return NULL;
         }
 
         if (go_through_rewards(rewards, dummie_player) != -1) // Found a prize
         {
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
-            return 2;        
+            return NULL;        
         }       
         
         break;
@@ -396,7 +396,7 @@ int collision_checker(playerList_t* listInit, player_t* dummie_player, player_t*
             dummie_player->position.y = aux2->player.position.y;
             dummie_player->health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
             aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
-            return 1;
+            return aux;
         }
 
         if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
@@ -405,7 +405,7 @@ int collision_checker(playerList_t* listInit, player_t* dummie_player, player_t*
 
             dummie_player->position.x = aux2->player.position.x;
             dummie_player->position.y = aux2->player.position.y;
-            return 1;
+            return NULL;
         }
 
         i = go_through_rewards(rewards, dummie_player);
@@ -413,7 +413,7 @@ int collision_checker(playerList_t* listInit, player_t* dummie_player, player_t*
         {
             rewards[i].flag = 0;
             dummie_player->health = dummie_player->health + rewards[i].value <= 10 ? dummie_player->health + rewards[i].value  : 10;
-            return 2;
+            return NULL;
         } 
 
         break;    

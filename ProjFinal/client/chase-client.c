@@ -1,10 +1,66 @@
 #include "../header/chase.h"
 
+playerList_t My_player;
+
+void* thread_listenner(void* arg){
+	thread_args_t * args = (thread_args_t*) arg;
+	int sock_fd= args->self_client_fd;
+	playerList_t* listInnit= args->list_of_players, *dummy_pointer;
+	playerList_t dummy_player;
+	message_s2c_t message_received;
+	message_c2s_t message_to_server;
+
+	dummy_player.client_fd_player=0;
+	dummy_player.thread_player=0;
+	while(1){
+		if(recv(sock_fd, &message_received , sizeof(message_c2s_t), 0)<0){
+			perror("Error receiving message from server");
+		}
+		switch(message_received.type){
+			case -1:
+				perror("not possible to play, to many players");
+				exit(-1);
+			
+			case 0:
+				//probably lock
+				My_player.player =message_received.player_dummy;
+				My_player.thread_player=0;
+				My_player.client_fd_player=0;
+				addToListEnd(listInnit, My_player);
+				printf("Your character is %c press Enter to continue\n", My_player.player.position.c);
+				getchar();
+				message_to_server.type=0;
+				send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
+				//unlock
+			
+			case 1:
+				dummy_player.player=message_received.player_dummy;
+				addToListEnd(listInnit, dummy_player);
+			
+			case 2:
+				dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
+				dummy_pointer->player=message_received.player_dummy;
+
+			case 3:
+				memcpy(args->bots, &message_received.bots, 10*sizeof(player_t));
+
+			case 4:
+				memcpy(args->rewards, &message_received.rewards, 10*sizeof(reward_t));
+
+		}
+	}
+
+}
+
 int main(int argc, char *argv[]){
 
     char* socket_port = argv[argc-1];
     char* socket_address = argv[argc-2];
-
+	playerList_t* listInnit;
+	listInnit= malloc(sizeof(playerList_t));
+	listInnit->next=NULL;
+	reward_t rewards[10];
+	player_t bots[10];
     int nbytes;
 
 
@@ -29,17 +85,27 @@ int main(int argc, char *argv[]){
 	}
 
     char message[100];
+	thread_args_t args;
+	args.list_of_players=listInnit;
+	args.bots=bots;
+	args.rewards=rewards;
 
-	do	
-	{
-		fgets(message, 100, stdin);
+	if(pthread_create(&(args.self_thread_id), NULL, thread_listenner, (void *)&args)!=0){
+			perror("Error while creating Thread");
+		}
+	while(1){
+		sleep(2);
+	}
+	// do	
+	// {
+	// 	fgets(message, 100, stdin);
 
-		nbytes = sendto(sock_fd,
-							message, strlen(message)+1, 0,
-							(const struct sockaddr *) &server_addr, sizeof(server_addr));
+	// 	nbytes = sendto(sock_fd,
+	// 						message, strlen(message)+1, 0,
+	// 						(const struct sockaddr *) &server_addr, sizeof(server_addr));
 
-		printf("\nsent %d bytes as %s\n\n", nbytes, message);
-	} while (message[0] != 'q');
+	// 	printf("\nsent %d bytes as %s\n\n", nbytes, message);
+	// } while (message[0] != 'q');
 
 	close(sock_fd);
 

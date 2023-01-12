@@ -14,20 +14,51 @@ void* thread_players(void* arg){
 	int self_client_connection=args->self_client_fd;
 	int bytes_received;
 	playerList_t* aux;
+	playerList_t newplayer;
+	message_s2c_t message_to_send;
+	message_c2s_t message_from_client;
 
-	char buffer[1024];
 
+	do{
+		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z')); 
+	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=1);// cycle
+
+	newplayer.thread_player = args->self_thread_id;
+	newplayer.client_fd_player = args->self_client_fd;
+
+	message_to_send.type = 1;
+	for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
+
+		message_to_send.player_dummy = aux->next->player;
+		write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+	}
+
+	message_to_send.type = 3;
+	memcpy(message_to_send.bots, args->bots, 10*sizeof(player_t));
+	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+
+	message_to_send.type = 4;
+	memcpy(message_to_send.rewards, args->rewards, 10*sizeof(player_t));
+	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+
+	message_to_send.type = 0;
+	message_to_send.player_dummy = newplayer.player;
+	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+
+	if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
+		perror("Error receiving data from client");
+		exit(EXIT_FAILURE);
+	}
+	
+	if(message_from_client.type == 0)
+		addToListEnd(args->list_of_players, newplayer);
 
 	while( 1 ){
 
-		int bytes_received = recv(self_client_connection, buffer, sizeof(buffer), 0);
-		if (bytes_received <= 0) {
+		if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 			perror("Error receiving data from client");
 			exit(EXIT_FAILURE);
 		}
-
-		// Print the received data
-		printf("Received %d bytes: %s from %d\n", bytes_received, buffer, self_client_connection);
 	}
     // Close the connection
     close(self_client_connection);
@@ -51,7 +82,7 @@ void* thread_rewards(void* arg){
 				do{
                     x=RandInt(1,WINDOW_SIZE-2);
                     y=RandInt(1,WINDOW_SIZE-2);
-                }while(is_free_position(rewards,bots, players, x, y)==false);
+                }while(is_free_position(rewards,bots, args->list_of_players, x, y)==false);
 				args->rewards[i].x=x;
                 args->rewards[i].y=y;
 				// function to send to all players
@@ -61,9 +92,9 @@ void* thread_rewards(void* arg){
 	}
 
 }
- void* thread_bots(void* arg){
-	thread_args_t *args= (thread_args_t*) arg;
- }
+//  void* thread_bots(void* arg){
+// 	thread_args_t *args= (thread_args_t*) arg;
+//  }
 
 int main(int argc, char *argv[]){
 
