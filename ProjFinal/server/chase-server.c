@@ -49,9 +49,11 @@ void* thread_players(void* arg){
 	message_to_send.type = 4;
 	memcpy(message_to_send.rewards, args->rewards, 10*sizeof(player_t));
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+	message_to_send.player_dummy = newplayer.player;
+	message_to_send.type=1;
+	send_msg_through_list(listInit, message_to_send);
 	printf("5\n");
 	message_to_send.type = 0;
-	message_to_send.player_dummy = newplayer.player;
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
 	printf("6\n");
 	if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
@@ -70,6 +72,7 @@ void* thread_players(void* arg){
 			perror("Error receiving data from client");
 			return NULL;
 		}
+		printf("tipo %d %d\n", message_from_client.type, self_client_connection);
 
 		if (message_from_client.type == 1) {
 			// À partida se ele consegue enviar esta mensagem, é porque está vivo
@@ -90,7 +93,7 @@ void* thread_players(void* arg){
 				}
 				else {
 					message_to_send.player_dummy = aux->player;
-					write(aux->client_fd_player, &message_to_send, sizeof(message_s2c_t));
+					send_msg_through_list(listInit, message_to_send);
 				}
 			}
 			else {

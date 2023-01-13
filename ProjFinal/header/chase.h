@@ -38,6 +38,7 @@ int RandInt(int low, int high) {
 
 /*
     Message Client to Server
+    -1-acknowledge health_0/leave game | 0-connect human | 1-info | 2 - continue game
 */
 typedef struct message_c2s_t{
     int type; // -1-connect bot | 0-connect human | 1-info | 2 - continue game
@@ -408,13 +409,12 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
 
             dummie_player->position.x = aux2->player.position.x;
             dummie_player->position.y = aux2->player.position.y;
-            dummie_player->health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
+            aux2->player.health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
             aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
             
             message_to_client.type = 2;
             message_to_client.player_dummy = aux2->player;
             send_msg_through_list(listInit, message_to_client);
-
             return aux;
         }
 
