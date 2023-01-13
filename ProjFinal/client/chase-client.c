@@ -1,6 +1,8 @@
 #include "../header/chase.h"
 
 playerList_t My_player;
+WINDOW * my_win;
+WINDOW* message_win;
 
 void* thread_listenner(void* arg){
 	thread_args_t * args = (thread_args_t*) arg;
@@ -17,13 +19,12 @@ void* thread_listenner(void* arg){
 		nbytes=recv(sock_fd, &message_received , sizeof(message_s2c_t), 0);
 		if(nbytes<0){
 			perror("Error receiving message from server");
-			exit(-1);
+			return NULL;
 		}
 		else{
 			switch(message_received.type){
 				case -1:
-					printf("-1 \n");
-					perror("not possible to play, to many players");
+					printf("not possible to play, to many players");
 					exit(-1);
 					break;
 				
@@ -31,40 +32,58 @@ void* thread_listenner(void* arg){
 					printf("0\n");
 					//probably lock
 					My_player.player =message_received.player_dummy;
-					printf("%d\n",My_player.player.health);
 					My_player.thread_player=0;
 					My_player.client_fd_player=0;
 					addToListEnd(listInnit, My_player);
-					printf("0.1\n");
 					printf("Your character is %c press Enter to continue\n", My_player.player.position.c);
 					getchar();
+					
+					//INIT NCURSES
+
+    				initscr();		    	/* Start curses mode 		*/
+					cbreak();				/* Line buffering disabled	*/
+    				keypad(stdscr, TRUE);   /* We get F1, F2 etc..		*/
+					noecho();			    /* Don't echo() while we do getch */
+
+    				/* creates a window and draws a border */
+    				my_win = newwin(WINDOW_SIZE, WINDOW_SIZE, 0, 0);
+    				keypad(my_win, true);
+    				message_win = newwin(10, WINDOW_SIZE, WINDOW_SIZE, 0);
+
+
 					message_to_server.type=0;
-					printf("0.2\n");
 					send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-					printf("0.3\n");
 					//unlock
 					break;
 				
 				case 1:
-					printf("1\n");
 					dummy_player.player=message_received.player_dummy;
 					addToListEnd(listInnit, dummy_player);
+					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					break;
 				
 				case 2:
-					printf("2\n");
 					dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
 					dummy_pointer->player=message_received.player_dummy;
+					if(dummy_pointer->player.position.c==My_player.player.position.c){
+						My_player.player=dummy_pointer->player;
+						if(My_player.player.health==0){
+							printf("player will die\n");
+
+							//Do the thing for the 10 secs
+						}
+					}
+					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					break;
 
 				case 3:
-					printf("3\n");
 					memcpy(args->bots, &message_received.bots, 10*sizeof(player_t));
+					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					break;
 
 				case 4:
-					printf("4\n");
 					memcpy(args->rewards, &message_received.rewards, 10*sizeof(reward_t));
+					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					break;
 
 			}
@@ -82,7 +101,7 @@ int main(int argc, char *argv[]){
 	listInnit->next=NULL;
 	reward_t rewards[10];
 	player_t bots[10];
-    int nbytes;
+	message_c2s_t message_to_server;
 
 
     int sock_fd= socket(AF_INET, SOCK_STREAM, 0);
@@ -105,7 +124,6 @@ int main(int argc, char *argv[]){
 		exit(-1);
 	}
 
-    char message[100];
 	thread_args_t args;
 	args.self_client_fd=sock_fd;
 	args.list_of_players=listInnit;
@@ -115,20 +133,37 @@ int main(int argc, char *argv[]){
 	if(pthread_create(&(args.self_thread_id), NULL, thread_listenner, (void *)&args)!=0){
 			perror("Error while creating Thread");
 		}
-	while(1){
-		sleep(2);
-	}
-	// do	
-	// {
-	// 	fgets(message, 100, stdin);
 
-	// 	nbytes = sendto(sock_fd,
-	// 						message, strlen(message)+1, 0,
-	// 						(const struct sockaddr *) &server_addr, sizeof(server_addr));
 
-	// 	printf("\nsent %d bytes as %s\n\n", nbytes, message);
-	// } while (message[0] != 'q');
+
+	int key = -1;
+    while(key != 27 && key!= 'q'){
+        key = wgetch(my_win);		
+        if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN){
+            message_to_server.type=1;
+            message_to_server.direction=key;
+            sendto(sock_fd, &message_to_server, sizeof(message_c2s_t), 0, 
+            (const struct sockaddr *)&server_addr, sizeof(server_addr));
+        }    	
+    }
+	werase(my_win);
+    werase(message_win);
+    wrefresh(message_win);
+    if(key=='q'){
+        message_to_server.type=2; //disconnect type
+        sendto(sock_fd, &message_to_server, sizeof(message_c2s_t), 0, 
+                    (const struct sockaddr *)&server_addr, sizeof(server_addr));
+    }
+    // if(message_from_server.type==2){
+    //     mvwprintw(my_win, 1, 1, "You Died :(\n");
+    // }
+    // else{
+    //     mvwprintw(my_win, 1, 1, "You Disconnected\n");
+    // }
+    mvwprintw(my_win, 2, 1, "Good Game!\n");
+    wmove(my_win,3, 1);
+    wrefresh(my_win);
 
 	close(sock_fd);
-
+	exit(0);
 }

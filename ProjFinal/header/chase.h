@@ -1,6 +1,7 @@
 #define WINDOW_SIZE 20
 #define FIFO_NAME "/tmp/fifo_chase"
 #define NBOTS 10
+#define MAX_CLIENTS ((WINDOW_SIZE-1)*(WINDOW_SIZE-1))/9
 
 
 #include <stdlib.h>
@@ -64,6 +65,7 @@ typedef struct reward_t{
 
 /*
     Message Server to Client
+    -1 no more clients allowed | 0 ball info | 1 player_new | 2 player_update | 3 bots info | 4 reward info
 */
 typedef struct message_s2c_t{
     int type; //-1 no more clients allowed | 0 ball info | 1 player_new | 2 player_update | 3 bots info | 4 reward info
@@ -152,7 +154,16 @@ playerList_t* findInList(playerList_t* listInit, char charToFind) {
     return NULL;    
 }
 
+bool send_msg_through_list(playerList_t* listInit, message_s2c_t message_to_send){
+	playerList_t* aux;
 
+	for(aux=listInit; aux->next!=NULL; aux=aux->next){
+        if(send(aux->next->client_fd_player, &message_to_send, sizeof(message_s2c_t),0)<=0){
+            return false;
+        }
+	}
+    return true;
+}
 
 bool is_free_position(reward_t* rewards, player_t* bots, playerList_t* listInit, int x, int y){
     int i;
@@ -225,6 +236,7 @@ void move_player (player_position_t * player, int direction){
     }
 }
 
+
 void delete_and_draw_board(WINDOW* window,WINDOW* message_win, playerList_t* listInit, player_t* bots, reward_t* rewards){
     int i,aux=1;
     player_position_t dummy_player;
@@ -291,7 +303,7 @@ void init_rewards_board(reward_t* reward_n, player_t* bots, playerList_t* listIn
 }
 
 int already_existent_char(playerList_t* listInit, char c){//returns the number of players with that char, expect result 1
-    int i, count=0;
+    int count=0;
     playerList_t* aux;
 
     for( aux = listInit; aux->next != NULL; aux = aux->next) {
@@ -303,8 +315,6 @@ int already_existent_char(playerList_t* listInit, char c){//returns the number o
 }
 
 playerList_t* go_through_player(playerList_t* listInit, player_t* dummy_player){
-
-    int i;
 
     playerList_t* aux;
 
@@ -352,6 +362,7 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
 
     int i;
     playerList_t* aux, *aux2;
+    message_s2c_t message_to_client;
 
     switch (is_player)
     {
@@ -363,6 +374,9 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
             aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
+            message_to_client.type = 2;
+            message_to_client.player_dummy = aux->player;
+            send_msg_through_list(listInit, message_to_client);
             return NULL;
         }
 
@@ -396,15 +410,20 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
             dummie_player->position.y = aux2->player.position.y;
             dummie_player->health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
             aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
+            
+            message_to_client.type = 2;
+            message_to_client.player_dummy = aux2->player;
+            send_msg_through_list(listInit, message_to_client);
+
             return aux;
         }
 
         if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
         {
             aux2 = findInList(listInit, dummie_player->position.c);
-
             dummie_player->position.x = aux2->player.position.x;
             dummie_player->position.y = aux2->player.position.y;
+            
             return NULL;
         }
 
@@ -413,6 +432,9 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
         {
             rewards[i].flag = 0;
             dummie_player->health = dummie_player->health + rewards[i].value <= 10 ? dummie_player->health + rewards[i].value  : 10;
+            message_to_client.type = 4;
+            memcpy(message_to_client.rewards, rewards, 10*sizeof(reward_t));
+            send_msg_through_list(listInit, message_to_client);
             return NULL;
         } 
 

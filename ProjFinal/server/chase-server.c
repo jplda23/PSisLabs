@@ -4,21 +4,23 @@ int NPlayers, NBots;
 playerList_t *listInit;
 
 
-bool send_msg_through_list(playerList_t* listInnit, message_s2c_t message_to_send){
-
-}
-
 void* thread_players(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
 	int self_client_connection=args->self_client_fd;
-	int bytes_received;
 	playerList_t* aux, *myPlayer;
 	playerList_t newplayer;
 	player_t dummy_player;
 	message_s2c_t message_to_send;
 	message_c2s_t message_from_client;
 
-	printf("Entrei na fucking thread \n");
+	if(NPlayers>= MAX_CLIENTS){
+		message_to_send.type=-1;
+		send(self_client_connection, &message_to_send, sizeof(message_s2c_t),0);
+		return NULL;
+	}
+	else{
+		NPlayers++;
+	}
 
 	do{
 		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z'));
@@ -54,7 +56,7 @@ void* thread_players(void* arg){
 	printf("6\n");
 	if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 		perror("Error receiving data from client");
-		exit(EXIT_FAILURE);
+		return NULL;
 	}
 	printf("7\n");
 	if(message_from_client.type == 0)
@@ -66,7 +68,7 @@ void* thread_players(void* arg){
 
 		if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 			perror("Error receiving data from client");
-			exit(EXIT_FAILURE);
+			return NULL;
 		}
 
 		if (message_from_client.type == 1) {
@@ -76,39 +78,46 @@ void* thread_players(void* arg){
 			dummy_player = myPlayer->player;
 			move_player(&dummy_player.position, message_from_client.direction);
 			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0);
+			message_to_send.type = 2;
 			if( aux != NULL) {
 				// bateu contra um player
 				if (aux->player.health == 0)
 				{
 					// Kill player
+					// message_to_send.
+					// write(aux->client_fd_player, &message_to_send, sizeof(message_s2c_t));
+					
+				}
+				else {
+					message_to_send.player_dummy = aux->player;
+					write(aux->client_fd_player, &message_to_send, sizeof(message_s2c_t));
 				}
 			}
 			else {
 				// Não bateu contra um player
 				myPlayer->player = dummy_player;
-				message_to_send.type = 2;
 				message_to_send.player_dummy = dummy_player;
-				write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-				
+				send_msg_through_list(args->list_of_players, message_to_send);
+				// function to write to everyone, not sure se ele fica com o write de cima.
 			}
 
 
 		}
-		
 	}
     // Close the connection
     close(self_client_connection);
     free(args);
-
+	NPlayers--;
     return NULL;
 }
 
 void* thread_rewards(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
-	printf("%d", args->rewards);
+	message_s2c_t message_with_rewards;
 	int i,x,y;
 	//create first five rewards
 	init_rewards_board(args->rewards, args->bots, args->list_of_players);
+	message_with_rewards.type=4;
 	
 	while(1){
 		sleep(5);
@@ -122,7 +131,8 @@ void* thread_rewards(void* arg){
                 }while(is_free_position(args->rewards, args->bots, args->list_of_players, x, y)==false);
 				args->rewards[i].x=x;
                 args->rewards[i].y=y;
-				// function to send to all players
+				memcpy(message_with_rewards.rewards, args->rewards, 10*sizeof(reward_t));
+				send_msg_through_list(args->list_of_players, message_with_rewards);
 				break;
 			}
 		}
@@ -132,19 +142,20 @@ void* thread_rewards(void* arg){
 
 void* thread_bots(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
-	printf("%d\n", args->rewards);
 	int nr_bots=args->self_client_fd; //use the int to just pass this information instead
 	player_t* bots=args->bots;
 	playerList_t* listInit=args->list_of_players;
 	reward_t* rewards=args->rewards;
 	player_t player_dummy;
+	message_s2c_t message_with_bots;
 
 	int i,x,y;
 	init_bots_health(bots);
+	message_with_bots.type=3;
+
 	for(i=0; i<nr_bots;i++){
 		bots[i].health=10;
 		bots[i].position.c='*';
-		sleep(1);
 		do{
 			x=RandInt(1,WINDOW_SIZE-1);
 			y=RandInt(1,WINDOW_SIZE-1);
@@ -152,7 +163,7 @@ void* thread_bots(void* arg){
 		}while (!(is_free_position(rewards, bots, listInit ,x,y)));
 		bots[i].position.x=x;
 		bots[i].position.y=y;	
-		printf("bot1 %d %d\n", bots[i].position.x, bots[i].position.y);	
+		// printf("bot1 %d %d\n", bots[i].position.x, bots[i].position.y);	
 	}
 
 	while(1){
@@ -165,7 +176,8 @@ void* thread_bots(void* arg){
 			bots[i].position.y=player_dummy.position.y;
 			printf("bots %d %d %d\n",i, bots[i].position.x, bots[i].position.y);
 		}
-		//function to send to all players
+		memcpy(message_with_bots.bots, bots, 10*sizeof(player_t));
+		send_msg_through_list(listInit, message_with_bots);
 	}
 }
 
@@ -210,9 +222,7 @@ int main(int argc, char *argv[]){
 	printf(" socket created and binded \n ");
 	printf("Ready to receive messages\n");
 
-    int nbytes, check;
-    char buffer[100];
-    char remote_addr_str[100];
+
 	thread_args_t *args;
 	listen(sock_fd,5);
 
