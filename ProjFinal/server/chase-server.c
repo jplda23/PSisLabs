@@ -107,17 +107,20 @@ void* thread_rewards(void* arg){
 	int i,x,y;
 	//create first five rewards
 	init_rewards_board(args->rewards, args->bots, args->list_of_players);
-
+	for(i=0;i<10;i++){
+		printf("%d %d %d\n",rewards[i].flag, rewards[i].x, rewards[i].y);
+	}
 	while(1){
-		usleep(5);
+		sleep(5);
 		for(i=0;i<10;i++){
 			if(args->rewards[i].flag==0){
+				printf("rewards %d\n",i);
 				args->rewards[i].flag=1;
 				args->rewards[i].value= RandInt(1,5);
 				do{
                     x=RandInt(1,WINDOW_SIZE-2);
                     y=RandInt(1,WINDOW_SIZE-2);
-                }while(is_free_position(rewards,bots, args->list_of_players, x, y)==false);
+                }while(is_free_position(args->rewards, args->bots, args->list_of_players, x, y)==false);
 				args->rewards[i].x=x;
                 args->rewards[i].y=y;
 				// function to send to all players
@@ -127,11 +130,47 @@ void* thread_rewards(void* arg){
 	}
 
 }
-//  void* thread_bots(void* arg){
-// 	thread_args_t *args= (thread_args_t*) arg;
-//  }
+
+void* thread_bots(void* arg){
+	thread_args_t *args= (thread_args_t*) arg;
+	int nr_bots=args->self_client_fd; //use the int to just pass this information instead
+	player_t* bots=args->bots;
+	playerList_t* listInit=args->list_of_players;
+	reward_t* rewards=args->rewards;
+	player_t player_dummy;
+
+	int i,x,y;
+	init_bots_health(bots);
+	for(i=0; i<nr_bots;i++){
+		bots[i].health=10;
+		bots[i].position.c='*';
+		sleep(1);
+		do{
+			x=RandInt(1,WINDOW_SIZE-1);
+			y=RandInt(1,WINDOW_SIZE-1);
+			
+		}while (is_free_position(rewards, bots, listInit,x,y));
+		bots[i].position.x=x;
+		bots[i].position.y=y;	
+		printf("bot1 %d %d\n", bots[i].position.x, bots[i].position.y);	
+	}
+
+	while(1){
+		sleep(3);
+		for(i=0;i<nr_bots;i++){
+			printf("bots %d %d %d\n",i, bots[i].position.x, bots[i].position.y);
+			player_dummy=bots[i];
+			move_player(&player_dummy.position, RandInt(1,4));
+			collision_checker(listInit, &player_dummy, bots, rewards, false, i);
+			bots[i]=player_dummy;
+		}
+		//function to send to all players
+	}
+}
 
 int main(int argc, char *argv[]){
+
+	int nr_bots=atoi(argv[argc-1]);
 
 	//Initialize list of players with first element being a void element
 	listInit = (playerList_t*) calloc(1,sizeof(playerList_t));
@@ -173,6 +212,28 @@ int main(int argc, char *argv[]){
     char remote_addr_str[100];
 	thread_args_t *args;
 	listen(sock_fd,5);
+
+	// launching rewards thread
+	args = malloc(sizeof(thread_args_t));
+    // args->self_client_fd=argv[argc-1];
+	args->list_of_players = listInit;
+	args->bots = bots;
+	args->rewards = rewards;
+	if(pthread_create(&(args->self_thread_id), NULL, thread_rewards, (void *)args)!=0){
+		perror("Error while creating Thread");
+	}
+	printf("Criei uma thread|! \n");
+
+	// launching bots thread
+	args = malloc(sizeof(thread_args_t));
+    args->self_client_fd=nr_bots;
+	args->list_of_players = listInit;
+	args->bots = bots;
+	args->rewards = rewards;
+	if(pthread_create(&(args->self_thread_id), NULL, thread_bots, (void *)args)!=0){
+		perror("Error while creating Thread");
+	}
+	printf("Criei uma thread|! \n");
 
     while(1){
 		args = malloc(sizeof(thread_args_t));
