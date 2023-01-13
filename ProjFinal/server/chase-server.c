@@ -12,8 +12,9 @@ void* thread_players(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
 	int self_client_connection=args->self_client_fd;
 	int bytes_received;
-	playerList_t* aux;
+	playerList_t* aux, *myPlayer;
 	playerList_t newplayer;
+	player_t dummy_player;
 	message_s2c_t message_to_send;
 	message_c2s_t message_from_client;
 
@@ -57,7 +58,7 @@ void* thread_players(void* arg){
 	}
 	printf("7\n");
 	if(message_from_client.type == 0)
-		addToListEnd(args->list_of_players, newplayer);
+		myPlayer = addToListEnd(args->list_of_players, newplayer);
 	printf("1º player char: %c \n", args->list_of_players->next->player.position.c);
 	printf("8\n");
 
@@ -67,7 +68,32 @@ void* thread_players(void* arg){
 			perror("Error receiving data from client");
 			exit(EXIT_FAILURE);
 		}
-		printf("%d \n",message_from_client.id);
+
+		if (message_from_client.type == 1) {
+			// À partida se ele consegue enviar esta mensagem, é porque está vivo
+			// Se tivesse morto tinha recebido uma mensagem de morte.
+
+			dummy_player = myPlayer->player;
+			move_player(&dummy_player.position, message_from_client.direction);
+			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0);
+			if( aux != NULL) {
+				// bateu contra um player
+				if (aux->player.health == 0)
+				{
+					// Kill player
+				}
+			}
+			else {
+				// Não bateu contra um player
+				myPlayer->player = dummy_player;
+				message_to_send.type = 2;
+				message_to_send.player_dummy = dummy_player;
+				write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+			}
+
+
+		}
+		
 	}
     // Close the connection
     close(self_client_connection);

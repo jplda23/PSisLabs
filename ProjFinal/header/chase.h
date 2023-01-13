@@ -82,7 +82,7 @@ typedef struct thread_args_t{
 } thread_args_t;
 
 
-int addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
+playerList_t* addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
 
     playerList_t* aux;
     playerList_t* add;
@@ -99,7 +99,7 @@ int addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
         if (add == NULL)
         {
             printf("Erro na alocação de memória.\n");
-            return 0;
+            return NULL;
         }
 
         add->next = NULL;
@@ -108,9 +108,9 @@ int addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
         add->thread_player=playerToAdd.thread_player;
         aux->next = add;
 
-    return 1;
+    return add;
     }
-    return 0;
+    return NULL;
 }
 
 int RemoveFromList(playerList_t *listInit, player_t dummy_player){
