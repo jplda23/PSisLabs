@@ -89,6 +89,7 @@ void* thread_players(void* arg){
 				message_to_send.type = 2;
 				message_to_send.player_dummy = dummy_player;
 				write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+				
 			}
 
 
