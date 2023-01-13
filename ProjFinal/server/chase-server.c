@@ -1,12 +1,12 @@
 #include "../header/chase.h"
 
 int NPlayers, NBots;
-player_t bots[NBOTS];//max possible size of vector
-reward_t rewards[10];
 playerList_t *listInit;
 
 
+bool send_msg_through_list(playerList_t* listInnit, message_s2c_t message_to_send){
 
+}
 
 void* thread_players(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
@@ -104,17 +104,15 @@ void* thread_players(void* arg){
 
 void* thread_rewards(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
+	printf("%d", args->rewards);
 	int i,x,y;
 	//create first five rewards
 	init_rewards_board(args->rewards, args->bots, args->list_of_players);
-	for(i=0;i<10;i++){
-		printf("%d %d %d\n",rewards[i].flag, rewards[i].x, rewards[i].y);
-	}
+	
 	while(1){
 		sleep(5);
 		for(i=0;i<10;i++){
 			if(args->rewards[i].flag==0){
-				printf("rewards %d\n",i);
 				args->rewards[i].flag=1;
 				args->rewards[i].value= RandInt(1,5);
 				do{
@@ -133,6 +131,7 @@ void* thread_rewards(void* arg){
 
 void* thread_bots(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
+	printf("%d\n", args->rewards);
 	int nr_bots=args->self_client_fd; //use the int to just pass this information instead
 	player_t* bots=args->bots;
 	playerList_t* listInit=args->list_of_players;
@@ -149,7 +148,7 @@ void* thread_bots(void* arg){
 			x=RandInt(1,WINDOW_SIZE-1);
 			y=RandInt(1,WINDOW_SIZE-1);
 			
-		}while (is_free_position(rewards, bots, listInit,x,y));
+		}while (!(is_free_position(rewards, bots, listInit ,x,y)));
 		bots[i].position.x=x;
 		bots[i].position.y=y;	
 		printf("bot1 %d %d\n", bots[i].position.x, bots[i].position.y);	
@@ -158,17 +157,20 @@ void* thread_bots(void* arg){
 	while(1){
 		sleep(3);
 		for(i=0;i<nr_bots;i++){
-			printf("bots %d %d %d\n",i, bots[i].position.x, bots[i].position.y);
 			player_dummy=bots[i];
-			move_player(&player_dummy.position, RandInt(1,4));
+			move_player(&player_dummy.position, RandInt(KEY_DOWN,KEY_RIGHT));
 			collision_checker(listInit, &player_dummy, bots, rewards, false, i);
-			bots[i]=player_dummy;
+			bots[i].position.x=player_dummy.position.x;
+			bots[i].position.y=player_dummy.position.y;
+			printf("bots %d %d %d\n",i, bots[i].position.x, bots[i].position.y);
 		}
 		//function to send to all players
 	}
 }
 
 int main(int argc, char *argv[]){
+	player_t bots[NBOTS];//max possible size of vector
+	reward_t rewards[10];
 
 	int nr_bots=atoi(argv[argc-1]);
 
