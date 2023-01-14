@@ -11,8 +11,8 @@ void* thread_10secs(void* arg){
 	
 	printf("Comecei a thread dos 10 segundos \n");
 	sleep(10);
-
-	if ( myPlayer_inList->is_active== 0) {
+	printf("passaram 10s %c %d\n ", myPlayer_inList->player.position.c,myPlayer_inList->is_active);
+	if ( myPlayer_inList->is_active == 0) {
 		
 		printf("Passaram 10s sem que nada acontecesse\n");
 		message_to_send.type = -3;
@@ -116,6 +116,11 @@ void* thread_players(void* arg){
 			return NULL;
 		}
 		printf("tipo %d %d\n", message_from_client.type, self_client_connection);
+		for( aux = args->list_of_players; aux->next != NULL; aux = aux->next)
+		{
+			printf("Player %c health: %d\n", aux->next->player.position.c, aux->next->player.health);
+		}
+		
 
 		if (message_from_client.type == 1) {
 			// À partida se ele consegue enviar esta mensagem, é porque está vivo
@@ -126,9 +131,19 @@ void* thread_players(void* arg){
 			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0);
 			message_to_send.type = 2;
 			if( aux != NULL) {
-				if (aux->player.health == 0)
+				if (aux->player.health == 0 && aux->is_active==1)
 				{
 					aux->is_active = 0;
+					// Player has health == 0!
+					printf("Player %c com saúde a 0, %d\n", aux->player.position.c, aux->player.health);
+					args10s = malloc(sizeof(thread_args_t));
+					//args10s->self_client_fd=args->self_client_fd;
+					args10s->list_of_players = listInit;
+					args10s->bots = &aux->player; // Usar bots para passar player
+					if(pthread_create(&(args10s->self_thread_id), NULL, thread_10secs, (void *)args10s)!=0){
+						perror("Error while creating Thread");
+					}
+					
 				}
 				
 				message_to_send.player_dummy = aux->player;
@@ -139,50 +154,32 @@ void* thread_players(void* arg){
 				myPlayer->player = dummy_player;
 				message_to_send.player_dummy = dummy_player;
 				send_msg_through_list(args->list_of_players, message_to_send);
-				// function to write to everyone, not sure se ele fica com o write de cima.
 			}
 		}
-		if (message_from_client.type == -1) {
-			// Player has health == 0!
-			printf("Player %c com saúde a 0\n", myPlayer->player.position.c);
-			args10s = malloc(sizeof(thread_args_t));
-			args10s->self_client_fd=args->self_client_fd;
-			args10s->list_of_players = listInit;
-			args10s->bots = &myPlayer->player; // Usar bots para passar player
-			if(pthread_create(&(args10s->self_thread_id), NULL, thread_10secs, (void *)args10s)!=0){
-			perror("Error while creating Thread");
-			}
-
-			if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
-				perror("Error receiving data from client");
-				pthread_exit(NULL);
-			}
-			printf("tipo %d %d\n", message_from_client.type, self_client_connection);
-			if (message_from_client.type == -1){
-				// Client wants to die
-				printf("Cliente %c wants to die\n", myPlayer->player.position.c);
-				myPlayer->is_active = -1; 
-				message_to_send.type = -3;
-				message_to_send.player_dummy = myPlayer->player;
-				send_msg_through_list(args->list_of_players, message_to_send);
-				close(args->self_client_fd);
-				RemoveFromList(args->list_of_players, myPlayer->player);
-				pthread_exit(NULL);		
-			}
-			if (message_from_client.type == 2) {
-				// Client wants to keep playing
-				printf("Client %c wants to keep playing\n", myPlayer->player.position.c);
-				myPlayer->is_active = 1;
-				myPlayer->player.health = 10;
-				message_to_send.type = -2;
-				send(self_client_connection, &message_to_send, sizeof(message_s2c_t),0);
-				message_to_send.type=2;
-				message_to_send.player_dummy=myPlayer->player;
-				send_msg_through_list(listInit, message_to_send);		
-			}
-			
+	
+		printf("tipo %d %d\n", message_from_client.type, self_client_connection);
+		if (message_from_client.type == -1){
+			// Client wants to die
+			printf("Cliente %c wants to die\n", myPlayer->player.position.c);
+			myPlayer->is_active = -1; 
+			message_to_send.type = -3;
+			message_to_send.player_dummy = myPlayer->player;
+			send_msg_through_list(args->list_of_players, message_to_send);
+			close(args->self_client_fd);
+			RemoveFromList(args->list_of_players, myPlayer->player);
+			pthread_exit(NULL);		
 		}
-		
+		if (message_from_client.type == 2) {
+			// Client wants to keep playing
+			printf("Client %c wants to keep playing\n", myPlayer->player.position.c);
+			myPlayer->is_active = 1;
+			myPlayer->player.health = 10;
+			message_to_send.type = -2;
+			send(self_client_connection, &message_to_send, sizeof(message_s2c_t),0);
+			message_to_send.type=2;
+			message_to_send.player_dummy=myPlayer->player;
+			send_msg_through_list(listInit, message_to_send);		
+		}
 	}
     // Close the connection
     close(self_client_connection);

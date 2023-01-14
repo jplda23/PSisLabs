@@ -37,6 +37,7 @@ void* thread_listenner(void* arg){
 					}
 					else {
 						RemoveFromList(args->list_of_players, message_received.player_dummy);
+						delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					}
 					break;	
 
@@ -45,7 +46,7 @@ void* thread_listenner(void* arg){
 					dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
 					if(dummy_pointer!=NULL){
 						dummy_pointer->player=message_received.player_dummy;
-						My_player.player=dummy_pointer->player;
+						//My_player.player=dummy_pointer->player;
 					}
 					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					break;
@@ -97,17 +98,20 @@ void* thread_listenner(void* arg){
 					dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
 					if(dummy_pointer!=NULL){
 						dummy_pointer->player=message_received.player_dummy;
+						mvwprintw(message_win, 5, 1, "char %c", message_received.player_dummy.position.c);
+						wrefresh(message_win);
 						if(dummy_pointer->player.position.c==My_player.player.position.c){
-							My_player.player=dummy_pointer->player;
-							if(My_player.player.health==0){
+							//My_player.player=dummy_pointer->player;
+							if(dummy_pointer->player.health==0){
 								global_player_will_die=1;
-								message_to_server.type=-1;
-								send(sock_fd, &message_to_server, sizeof(message_c2s_t), 0);//acknowledge that is with health zero~
 								werase(my_win);
 								werase(message_win);
 								mvwprintw(my_win, 2, 1, "Do You Wish to Continue playing?\n");
 								mvwprintw(my_win, 3, 1, "You have 10 seconds to decide!\n");
 								mvwprintw(my_win, 4, 1, "Press C to continue, Q to exit!\n");
+								wmove(my_win, 5, 1);
+								printf("char %c", My_player.player.position.c);
+								mvwprintw(my_win, 10, 1, "char %c", My_player.player.position.c);
 								wrefresh(my_win);
 								wrefresh(message_win);
 							}

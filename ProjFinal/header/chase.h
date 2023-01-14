@@ -384,7 +384,7 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
                 send_msg_through_list(listInit, message_to_client);
             }
             
-            return NULL;
+            return aux;
         }
 
         if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
