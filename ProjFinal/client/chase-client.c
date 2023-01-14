@@ -51,12 +51,12 @@ void* thread_listenner(void* arg){
 					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					break;
 				case -1:
-					printf("not possible to play, to many players");
+					//printf("not possible to play, to many players");
 					exit(-1);
 					break;
 				
 				case 0:
-					printf("0\n");
+					//printf("0\n");
 					//probably lock
 					My_player.player =message_received.player_dummy;
 					My_player.thread_player=0;
@@ -110,8 +110,8 @@ void* thread_listenner(void* arg){
 								mvwprintw(my_win, 3, 1, "You have 10 seconds to decide!\n");
 								mvwprintw(my_win, 4, 1, "Press C to continue, Q to exit!\n");
 								wmove(my_win, 5, 1);
-								printf("char %c", My_player.player.position.c);
-								mvwprintw(my_win, 10, 1, "char %c", My_player.player.position.c);
+								//printf("char %c", My_player.player.position.c);
+								//mvwprintw(my_win, 10, 1, "char %c", My_player.player.position.c);
 								wrefresh(my_win);
 								wrefresh(message_win);
 							}
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]){
 		perror("socket: ");
 		exit(-1);
 	}
-	printf(" socket created \n Ready to send\n");
+	//printf(" socket created \n Ready to send\n");
 
     struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;

@@ -2,6 +2,8 @@
 
 int NPlayers, NBots;
 playerList_t *listInit;
+WINDOW * my_win;
+WINDOW* message_win;
 
 void* thread_10secs(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
@@ -9,12 +11,12 @@ void* thread_10secs(void* arg){
 	message_s2c_t message_to_send;
 	playerList_t* myPlayer_inList=findInList(args->list_of_players, myPlayer->position.c);
 	
-	printf("Comecei a thread dos 10 segundos \n");
+	//printf("Comecei a thread dos 10 segundos \n");
 	sleep(10);
-	printf("passaram 10s %c %d\n ", myPlayer_inList->player.position.c,myPlayer_inList->is_active);
+	//printf("passaram 10s %c %d\n ", myPlayer_inList->player.position.c,myPlayer_inList->is_active);
 	if ( myPlayer_inList->is_active == 0) {
 		
-		printf("Passaram 10s sem que nada acontecesse\n");
+		//printf("Passaram 10s sem que nada acontecesse\n");
 		message_to_send.type = -3;
 		message_to_send.player_dummy = *myPlayer;
 		send_msg_through_list(args->list_of_players, message_to_send);
@@ -48,31 +50,31 @@ void* thread_players(void* arg){
 
 	do{
 		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z'));
-		printf("Cheguei ao new_player\n");
+		//printf("Cheguei ao new_player\n");
 	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=0);// cycle
-	printf("char: %c \n", newplayer.player.position.c);
-	printf("Position x: %d \n", newplayer.player.position.x);
-	printf("Position y: %d \n", newplayer.player.position.y);
-	printf("1\n");
+	//printf("char: %c \n", newplayer.player.position.c);
+	//printf("Position x: %d \n", newplayer.player.position.x);
+	//printf("Position y: %d \n", newplayer.player.position.y);
+	//printf("1\n");
 	newplayer.thread_player = args->self_thread_id;
 	newplayer.client_fd_player = args->self_client_fd;
 	newplayer.player.health = 10;
 	newplayer.is_active = 1;
 
-	printf("2\n");
+	//printf("2\n");
 	// message_to_send.type = 1;
 	// for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
 
 	// 	message_to_send.player_dummy = aux->next->player;
 	// 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
 	// }
-	printf("3\n");
+	//printf("3\n");
 
 	//Transmits bots info
 	message_to_send.type = 3;
 	memcpy(message_to_send.bots, args->bots, 10*sizeof(player_t));
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	printf("4\n");
+	//printf("4\n");
 
 	//transmits rewards info
 	message_to_send.type = 4;
@@ -83,29 +85,29 @@ void* thread_players(void* arg){
 	message_to_send.player_dummy = newplayer.player;
 	message_to_send.type = 0;
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	printf("6\n");
+	//printf("6\n");
 
 	//receive the confirmation from the player that it started playing
 	if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 		perror("Error receiving data from client");
 		return NULL;
 	}
-	printf("7\n");
+	//printf("7\n");
 
 	//if the message is indeed of that type, adds the player to the list
 	if(message_from_client.type == 0){
 		//transmits the info that it created a new player to all players
 		message_to_send.type=1;
 		send_msg_through_list(listInit, message_to_send);
-		printf("5\n");
+		//printf("5\n");
 		myPlayer = addToListEnd(args->list_of_players, newplayer);
 		for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
 			message_to_send.player_dummy = aux->next->player;
 			write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
 		}
 	}
-	printf("1º player char: %c \n", args->list_of_players->next->player.position.c);
-	printf("8\n");
+	//printf("1º player char: %c \n", args->list_of_players->next->player.position.c);
+	//printf("8\n");
 
 
 	//cicle to receive more messages from this client
@@ -115,11 +117,11 @@ void* thread_players(void* arg){
 			perror("Error receiving data from client");
 			return NULL;
 		}
-		printf("tipo %d %d\n", message_from_client.type, self_client_connection);
-		for( aux = args->list_of_players; aux->next != NULL; aux = aux->next)
-		{
-			printf("Player %c health: %d\n", aux->next->player.position.c, aux->next->player.health);
-		}
+		//printf("tipo %d %d\n", message_from_client.type, self_client_connection);
+		// for( aux = args->list_of_players; aux->next != NULL; aux = aux->next)
+		// {
+		// 	printf("Player %c health: %d\n", aux->next->player.position.c, aux->next->player.health);
+		// }
 		
 
 		if (message_from_client.type == 1) {
@@ -135,7 +137,7 @@ void* thread_players(void* arg){
 				{
 					aux->is_active = 0;
 					// Player has health == 0!
-					printf("Player %c com saúde a 0, %d\n", aux->player.position.c, aux->player.health);
+					//printf("Player %c com saúde a 0, %d\n", aux->player.position.c, aux->player.health);
 					args10s = malloc(sizeof(thread_args_t));
 					//args10s->self_client_fd=args->self_client_fd;
 					args10s->list_of_players = listInit;
@@ -155,12 +157,13 @@ void* thread_players(void* arg){
 				message_to_send.player_dummy = dummy_player;
 				send_msg_through_list(args->list_of_players, message_to_send);
 			}
+			delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 		}
 	
-		printf("tipo %d %d\n", message_from_client.type, self_client_connection);
+		//printf("tipo %d %d\n", message_from_client.type, self_client_connection);
 		if (message_from_client.type == -1){
 			// Client wants to die
-			printf("Cliente %c wants to die\n", myPlayer->player.position.c);
+			//printf("Cliente %c wants to die\n", myPlayer->player.position.c);
 			myPlayer->is_active = -1; 
 			message_to_send.type = -3;
 			message_to_send.player_dummy = myPlayer->player;
@@ -171,7 +174,7 @@ void* thread_players(void* arg){
 		}
 		if (message_from_client.type == 2) {
 			// Client wants to keep playing
-			printf("Client %c wants to keep playing\n", myPlayer->player.position.c);
+			//printf("Client %c wants to keep playing\n", myPlayer->player.position.c);
 			myPlayer->is_active = 1;
 			myPlayer->player.health = 10;
 			message_to_send.type = -2;
@@ -210,6 +213,7 @@ void* thread_rewards(void* arg){
                 args->rewards[i].y=y;
 				memcpy(message_with_rewards.rewards, args->rewards, 10*sizeof(reward_t));
 				send_msg_through_list(args->list_of_players, message_with_rewards);
+				delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 				break;
 			}
 		}
@@ -252,6 +256,7 @@ void* thread_bots(void* arg){
 			bots[i].position.y=player_dummy.position.y;
 		}
 		memcpy(message_with_bots.bots, bots, 10*sizeof(player_t));
+		delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 		send_msg_through_list(listInit, message_with_bots);
 	}
 }
@@ -310,7 +315,7 @@ int main(int argc, char *argv[]){
 	if(pthread_create(&(args->self_thread_id), NULL, thread_rewards, (void *)args)!=0){
 		perror("Error while creating Thread");
 	}
-	printf("Criei uma thread|! \n");
+	//printf("Criei uma thread|! \n");
 
 	// launching bots thread
 	args = malloc(sizeof(thread_args_t));
@@ -321,7 +326,19 @@ int main(int argc, char *argv[]){
 	if(pthread_create(&(args->self_thread_id), NULL, thread_bots, (void *)args)!=0){
 		perror("Error while creating Thread");
 	}
-	printf("Criei uma thread|! \n");
+	//printf("Criei uma thread|! \n");
+
+	//INIT NCURSES
+
+	initscr();		    	/* Start curses mode 		*/
+	cbreak();				/* Line buffering disabled	*/
+	keypad(stdscr, TRUE);   /* We get F1, F2 etc..		*/
+	noecho();			    /* Don't echo() while we do getch */
+
+	/* creates a window and draws a border */
+	my_win = newwin(WINDOW_SIZE, WINDOW_SIZE, 0, 0);
+	keypad(my_win, true);
+	message_win = newwin(10, WINDOW_SIZE, WINDOW_SIZE, 0);
 
     while(1){
 		args = malloc(sizeof(thread_args_t));
@@ -332,7 +349,7 @@ int main(int argc, char *argv[]){
 		if(pthread_create(&(args->self_thread_id), NULL, thread_players, (void *)args)!=0){
 			perror("Error while creating Thread");
 		}
-		printf("Criei uma thread|! \n");
+		//printf("Criei uma thread|! \n");
 
         // nbytes = recvfrom(sock_fd, buffer, 100, 0,
 		//                   ( struct sockaddr *)&client_addr, &client_addr_size);
