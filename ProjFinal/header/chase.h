@@ -41,7 +41,7 @@ int RandInt(int low, int high) {
     -1-acknowledge health_0/leave game | 0-connect human | 1-info | 2 - continue game
 */
 typedef struct message_c2s_t{
-    int type; // -1-connect bot | 0-connect human | 1-info | 2 - continue game
+    int type; 
     char id;\
     direction_t direction;
 } message_c2s_t;
@@ -264,11 +264,11 @@ void delete_and_draw_board(WINDOW* window,WINDOW* message_win, playerList_t* lis
 
     for( auxPlayer = listInit; auxPlayer->next != NULL; auxPlayer = auxPlayer->next) {
     
-        if(auxPlayer->next->player.health > 0 ){
-            draw_player(window, &auxPlayer->next->player.position, true);//draw new
-            mvwprintw(message_win, aux,1,"%c %d ", auxPlayer->next->player.position.c, auxPlayer->next->player.health);
-            aux++;
-        }
+        
+        draw_player(window, &auxPlayer->next->player.position, true);//draw new
+        mvwprintw(message_win, aux,1,"%c %d ", auxPlayer->next->player.position.c, auxPlayer->next->player.health);
+        aux++;
+        
 
     }
     wrefresh(window);
@@ -414,8 +414,6 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
             aux2 = findInList(listInit, dummie_player->position.c);
             dummie_player->position.x = aux2->player.position.x;
             dummie_player->position.y = aux2->player.position.y;
-            printf("A collision has occured \t");
-            printf("%c hits %c \n", aux2->player.position.c, aux->player.position.c);
 
             if (aux->is_active == 1)
             {

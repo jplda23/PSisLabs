@@ -27,10 +27,13 @@ void* thread_listenner(void* arg){
 			switch(message_received.type){
 				case -3:
 					if (message_received.player_dummy.position.c == My_player.player.position.c) {
-						//kill yourself
-						//close socket
-						//close ncurses
-						//printf("You died. It was a good game \n");
+						global_player_will_die=2;
+						close(sock_fd);
+						werase(my_win);
+						mvwprintw(my_win, 2, 1, "You are out!\n");
+						mvwprintw(my_win, 4, 1, "Press any key to exit!\n");
+						wrefresh(my_win);
+						pthread_exit(NULL);
 					}
 					else {
 						RemoveFromList(args->list_of_players, message_received.player_dummy);
@@ -45,6 +48,7 @@ void* thread_listenner(void* arg){
 						My_player.player=dummy_pointer->player;
 					}
 					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
+					break;
 				case -1:
 					printf("not possible to play, to many players");
 					exit(-1);
@@ -96,11 +100,16 @@ void* thread_listenner(void* arg){
 						if(dummy_pointer->player.position.c==My_player.player.position.c){
 							My_player.player=dummy_pointer->player;
 							if(My_player.player.health==0){
-								printf("player will die\n");
 								global_player_will_die=1;
 								message_to_server.type=-1;
-								send(sock_fd, &message_to_server, sizeof(message_c2s_t), 0);//acknowledge that is with health zero
-								
+								send(sock_fd, &message_to_server, sizeof(message_c2s_t), 0);//acknowledge that is with health zero~
+								werase(my_win);
+								werase(message_win);
+								mvwprintw(my_win, 2, 1, "Do You Wish to Continue playing?\n");
+								mvwprintw(my_win, 3, 1, "You have 10 seconds to decide!\n");
+								mvwprintw(my_win, 4, 1, "Press C to continue, Q to exit!\n");
+								wrefresh(my_win);
+								wrefresh(message_win);
 							}
 						}
 						if( global_player_will_die==0){
@@ -171,13 +180,12 @@ int main(int argc, char *argv[]){
 			perror("Error while creating Thread");
 		}
 
-
-
 	int key = -1;
-    while( (key != 27 && key!= 'q') || global_player_will_die == 1){
-		if (global_player_will_die != 1)
+    while( key != 27 && key!= 'q'){
+
+		key = wgetch(my_win);
+		if (global_player_will_die == 0)
 		{
-			key = wgetch(my_win);
 			if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN){
 				message_to_server.type=1;
 				message_to_server.direction=key;
@@ -185,55 +193,51 @@ int main(int argc, char *argv[]){
 				(const struct sockaddr *)&server_addr, sizeof(server_addr));
         	}
 		}
-		if (global_player_will_die==1){
-			message_to_server.type=-1;
+		if (key == 'c')
+		{
+			//send message to server to keep playing
+			message_to_server.type = 2;
+			global_player_will_die = 0;
 			send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-			werase(my_win);
-			werase(message_win);
-			mvwprintw(my_win, 2, 1, "Do You Wish to Continue playing?\n");
-			mvwprintw(my_win, 3, 1, "You have 10 seconds to decide!\n");
-			mvwprintw(my_win, 4, 1, "Press Enter to continue, Q to exit!\n");
-			wrefresh(message_win);
-			while(1){
-        		key = wgetch(my_win);
-				if(key=='q'){
-					//Send message to server to disconnect
-					global_player_will_die=2; // aqui o client automaticamente disconecta , mas podemos fazer antes receber uma mensagem de disconect definitivo
-					message_to_server.type = -1;
-					send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-					break;
-				}
-				if(key==KEY_ENTER){
-					//send message to server to keep playing
-					message_to_server.type = 2;
-					send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-					// aqui depois de mandar a msg para o server o client recebe uma msg do server de reiniciar o jogo (caso -2), e recomeça o jogo
-					break;
-				}
-			}
+			// aqui depois de mandar a msg para o server o client recebe uma msg do server de reiniciar o jogo (caso -2), e recomeça o jogo			
 		}
 		if(global_player_will_die==2){
 			break;
-		}	
-    }
+		}
+	}	
+		// if (global_player_will_die==1){
+			
+		// 	while(1){
+        // 		key = wgetch(my_win);
+		// 		if(key=='q'){
+		// 			//Send message to server to disconnect
+		// 			global_player_will_die=2; // aqui o client automaticamente disconecta , mas podemos fazer antes receber uma mensagem de disconect definitivo
+		// 			message_to_server.type = -1;
+		// 			send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
+		// 			break;
+		// 		}
+		// 		if(key=='c'){
+		// 			//send message to server to keep playing
+		// 			message_to_server.type = 2;
+		// 			send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
+		// 			// aqui depois de mandar a msg para o server o client recebe uma msg do server de reiniciar o jogo (caso -2), e recomeça o jogo
+		// 			break;
+		// 		}
+		// 	}
+		// }
+    
 	werase(my_win);
     werase(message_win);
     wrefresh(message_win);
     if(key=='q'){
-        message_to_server.type=2; //disconnect type
+        message_to_server.type=-1; //disconnect type
         sendto(sock_fd, &message_to_server, sizeof(message_c2s_t), 0, 
                     (const struct sockaddr *)&server_addr, sizeof(server_addr));
     }
-    // if(message_from_server.type==2){
-    //     mvwprintw(my_win, 1, 1, "You Died :(\n");
-    // }
-    // else{
-    //     mvwprintw(my_win, 1, 1, "You Disconnected\n");
-    // }
     mvwprintw(my_win, 2, 1, "Good Game!\n");
     wmove(my_win,3, 1);
     wrefresh(my_win);
-
+	//free list
 	close(sock_fd);
 	exit(0);
 }

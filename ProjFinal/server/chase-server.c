@@ -8,16 +8,18 @@ void* thread_10secs(void* arg){
 	player_t* myPlayer = args->bots;
 	message_s2c_t message_to_send;
 	playerList_t* myPlayer_inList=findInList(args->list_of_players, myPlayer->position.c);
-
+	
+	printf("Comecei a thread dos 10 segundos \n");
 	sleep(10);
 
 	if ( myPlayer_inList->is_active== 0) {
-
+		
+		printf("Passaram 10s sem que nada acontecesse\n");
 		message_to_send.type = -3;
 		message_to_send.player_dummy = *myPlayer;
 		send_msg_through_list(args->list_of_players, message_to_send);
+		close(args->self_client_fd);
 		RemoveFromList(args->list_of_players, *myPlayer);
-				
 	}
 	free(arg);
 	pthread_exit(NULL);
@@ -121,10 +123,14 @@ void* thread_players(void* arg){
 
 			dummy_player = myPlayer->player;
 			move_player(&dummy_player.position, message_from_client.direction);
-			printf("moved my player \n");
 			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0);
 			message_to_send.type = 2;
 			if( aux != NULL) {
+				if (aux->player.health == 0)
+				{
+					aux->is_active = 0;
+				}
+				
 				message_to_send.player_dummy = aux->player;
 				send_msg_through_list(listInit, message_to_send);
 			}
@@ -138,7 +144,7 @@ void* thread_players(void* arg){
 		}
 		if (message_from_client.type == -1) {
 			// Player has health == 0!
-			myPlayer->is_active = 0;
+			printf("Player %c com saúde a 0\n", myPlayer->player.position.c);
 			args10s = malloc(sizeof(thread_args_t));
 			args10s->self_client_fd=args->self_client_fd;
 			args10s->list_of_players = listInit;
@@ -149,24 +155,31 @@ void* thread_players(void* arg){
 
 			if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 				perror("Error receiving data from client");
-				return NULL;
+				pthread_exit(NULL);
 			}
+			printf("tipo %d %d\n", message_from_client.type, self_client_connection);
 			if (message_from_client.type == -1){
 				// Client wants to die
+				printf("Cliente %c wants to die\n", myPlayer->player.position.c);
 				myPlayer->is_active = -1; 
 				message_to_send.type = -3;
 				message_to_send.player_dummy = myPlayer->player;
 				send_msg_through_list(args->list_of_players, message_to_send);
-				RemoveFromList(args->list_of_players, myPlayer->player);				
+				close(args->self_client_fd);
+				RemoveFromList(args->list_of_players, myPlayer->player);
+				pthread_exit(NULL);		
 			}
 			if (message_from_client.type == 2) {
 				// Client wants to keep playing
+				printf("Client %c wants to keep playing\n", myPlayer->player.position.c);
 				myPlayer->is_active = 1;
+				myPlayer->player.health = 10;
 				message_to_send.type = -2;
-				send(self_client_connection, &message_to_send, sizeof(message_s2c_t),0);			
+				send(self_client_connection, &message_to_send, sizeof(message_s2c_t),0);
+				message_to_send.type=2;
+				message_to_send.player_dummy=myPlayer->player;
+				send_msg_through_list(listInit, message_to_send);		
 			}
-			
-
 			
 		}
 		
@@ -230,7 +243,6 @@ void* thread_bots(void* arg){
 		}while (!(is_free_position(rewards, bots, listInit ,x,y)));
 		bots[i].position.x=x;
 		bots[i].position.y=y;	
-		// printf("bot1 %d %d\n", bots[i].position.x, bots[i].position.y);	
 	}
 
 	while(1){
@@ -241,7 +253,6 @@ void* thread_bots(void* arg){
 			collision_checker(listInit, &player_dummy, bots, rewards, false, i);
 			bots[i].position.x=player_dummy.position.x;
 			bots[i].position.y=player_dummy.position.y;
-			printf("bots %d %d %d\n",i, bots[i].position.x, bots[i].position.y);
 		}
 		memcpy(message_with_bots.bots, bots, 10*sizeof(player_t));
 		send_msg_through_list(listInit, message_with_bots);
