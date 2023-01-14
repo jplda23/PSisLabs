@@ -55,6 +55,7 @@ typedef struct playerList_t {
     player_t player;
     pthread_t thread_player;
     int client_fd_player;
+    int is_active;
     struct playerList_t* next;
 } playerList_t;
 
@@ -66,10 +67,10 @@ typedef struct reward_t{
 
 /*
     Message Server to Client
-    -1 no more clients allowed | 0 ball info | 1 player_new | 2 player_update | 3 bots info | 4 reward info
+  -3 remove player | -2 back to game | -1 no more clients allowed | 0 ball info | 1 player_new | 2 player_update | 3 bots info | 4 reward info
 */
 typedef struct message_s2c_t{
-    int type; //-1 no more clients allowed | 0 ball info | 1 player_new | 2 player_update | 3 bots info | 4 reward info
+    int type; 
     player_t player_dummy;
     reward_t rewards[10];
     player_t bots[10];
@@ -109,6 +110,7 @@ playerList_t* addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
         add->player = playerToAdd.player;
         add->client_fd_player=playerToAdd.client_fd_player;
         add->thread_player=playerToAdd.thread_player;
+        add->is_active = playerToAdd.is_active;
         aux->next = add;
 
     return add;
@@ -321,7 +323,8 @@ playerList_t* go_through_player(playerList_t* listInit, player_t* dummy_player){
 
     for( aux = listInit; aux->next != NULL; aux = aux->next) {
     
-        if (aux->next->player.position.x == dummy_player->position.x && aux->next->player.position.y == dummy_player->position.y)
+        if (aux->next->player.position.x == dummy_player->position.x
+            && aux->next->player.position.y == dummy_player->position.y)
         {
             return aux->next;
         }  
@@ -374,10 +377,13 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
         {
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
-            aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
-            message_to_client.type = 2;
-            message_to_client.player_dummy = aux->player;
-            send_msg_through_list(listInit, message_to_client);
+            if(aux->is_active == 1) {
+                aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
+                message_to_client.type = 2;
+                message_to_client.player_dummy = aux->player;
+                send_msg_through_list(listInit, message_to_client);
+            }
+            
             return NULL;
         }
 
@@ -406,15 +412,20 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
             // aux2 is the play that hits
 
             aux2 = findInList(listInit, dummie_player->position.c);
-
             dummie_player->position.x = aux2->player.position.x;
             dummie_player->position.y = aux2->player.position.y;
-            aux2->player.health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
-            aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
-            
-            message_to_client.type = 2;
-            message_to_client.player_dummy = aux2->player;
-            send_msg_through_list(listInit, message_to_client);
+            printf("A collision has occured \t");
+            printf("%c hits %c \n", aux2->player.position.c, aux->player.position.c);
+
+            if (aux->is_active == 1)
+            {
+                aux2->player.health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
+                aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
+                
+                message_to_client.type = 2;
+                message_to_client.player_dummy = aux2->player;
+                send_msg_through_list(listInit, message_to_client);
+            } 
             return aux;
         }
 

@@ -1,3 +1,4 @@
+
 #include "../header/chase.h"
 
 playerList_t My_player;
@@ -23,7 +24,19 @@ void* thread_listenner(void* arg){
 			return NULL;
 		}
 		else{
-			switch(message_received.type){		
+			switch(message_received.type){
+				case -3:
+					if (message_received.player_dummy.position.c == My_player.player.position.c) {
+						//kill yourself
+						//close socket
+						//close ncurses
+						//printf("You died. It was a good game \n");
+					}
+					else {
+						RemoveFromList(args->list_of_players, message_received.player_dummy);
+					}
+					break;	
+
 				case -2: //caso de voltar ao jogo
 					global_player_will_die=0;
 					dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
@@ -68,7 +81,9 @@ void* thread_listenner(void* arg){
 				
 				case 1:
 					dummy_player.player=message_received.player_dummy;
-					addToListEnd(listInnit, dummy_player);
+					if(findInList(listInnit, dummy_player.player.position.c)==NULL){
+						addToListEnd(listInnit, dummy_player);
+					}
 					if( global_player_will_die==0){
 						delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					}
@@ -83,6 +98,8 @@ void* thread_listenner(void* arg){
 							if(My_player.player.health==0){
 								printf("player will die\n");
 								global_player_will_die=1;
+								message_to_server.type=-1;
+								send(sock_fd, &message_to_server, sizeof(message_c2s_t), 0);//acknowledge that is with health zero
 								
 							}
 						}
@@ -157,14 +174,17 @@ int main(int argc, char *argv[]){
 
 
 	int key = -1;
-    while(key != 27 && key!= 'q'){
-        key = wgetch(my_win);		
-        if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN){
-            message_to_server.type=1;
-            message_to_server.direction=key;
-            sendto(sock_fd, &message_to_server, sizeof(message_c2s_t), 0, 
-            (const struct sockaddr *)&server_addr, sizeof(server_addr));
-        }
+    while( (key != 27 && key!= 'q') || global_player_will_die == 1){
+		if (global_player_will_die != 1)
+		{
+			key = wgetch(my_win);
+			if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN){
+				message_to_server.type=1;
+				message_to_server.direction=key;
+				sendto(sock_fd, &message_to_server, sizeof(message_c2s_t), 0, 
+				(const struct sockaddr *)&server_addr, sizeof(server_addr));
+        	}
+		}
 		if (global_player_will_die==1){
 			message_to_server.type=-1;
 			send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
@@ -179,10 +199,14 @@ int main(int argc, char *argv[]){
 				if(key=='q'){
 					//Send message to server to disconnect
 					global_player_will_die=2; // aqui o client automaticamente disconecta , mas podemos fazer antes receber uma mensagem de disconect definitivo
+					message_to_server.type = -1;
+					send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
 					break;
 				}
 				if(key==KEY_ENTER){
 					//send message to server to keep playing
+					message_to_server.type = 2;
+					send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
 					// aqui depois de mandar a msg para o server o client recebe uma msg do server de reiniciar o jogo (caso -2), e recomeça o jogo
 					break;
 				}

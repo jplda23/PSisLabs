@@ -3,9 +3,31 @@
 int NPlayers, NBots;
 playerList_t *listInit;
 
+void* thread_10secs(void* arg){
+	thread_args_t *args= (thread_args_t*) arg;
+	player_t* myPlayer = args->bots;
+	message_s2c_t message_to_send;
+	playerList_t* myPlayer_inList=findInList(args->list_of_players, myPlayer->position.c);
+
+	sleep(10);
+
+	if ( myPlayer_inList->is_active== 0) {
+
+		message_to_send.type = -3;
+		message_to_send.player_dummy = *myPlayer;
+		send_msg_through_list(args->list_of_players, message_to_send);
+		RemoveFromList(args->list_of_players, *myPlayer);
+				
+	}
+	free(arg);
+	pthread_exit(NULL);
+	
+}
+
 
 void* thread_players(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
+	thread_args_t *args10s;
 	int self_client_connection=args->self_client_fd;
 	playerList_t* aux, *myPlayer;
 	playerList_t newplayer;
@@ -33,39 +55,58 @@ void* thread_players(void* arg){
 	newplayer.thread_player = args->self_thread_id;
 	newplayer.client_fd_player = args->self_client_fd;
 	newplayer.player.health = 10;
+	newplayer.is_active = 1;
 
 	printf("2\n");
-	message_to_send.type = 1;
-	for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
+	// message_to_send.type = 1;
+	// for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
 
-		message_to_send.player_dummy = aux->next->player;
-		write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	}
+	// 	message_to_send.player_dummy = aux->next->player;
+	// 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+	// }
 	printf("3\n");
+
+	//Transmits bots info
 	message_to_send.type = 3;
 	memcpy(message_to_send.bots, args->bots, 10*sizeof(player_t));
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
 	printf("4\n");
+
+	//transmits rewards info
 	message_to_send.type = 4;
 	memcpy(message_to_send.rewards, args->rewards, 10*sizeof(player_t));
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+
+	//transmits the ball info to the client 
 	message_to_send.player_dummy = newplayer.player;
-	message_to_send.type=1;
-	send_msg_through_list(listInit, message_to_send);
-	printf("5\n");
 	message_to_send.type = 0;
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
 	printf("6\n");
+
+	//receive the confirmation from the player that it started playing
 	if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 		perror("Error receiving data from client");
 		return NULL;
 	}
 	printf("7\n");
-	if(message_from_client.type == 0)
+
+	//if the message is indeed of that type, adds the player to the list
+	if(message_from_client.type == 0){
+		//transmits the info that it created a new player to all players
+		message_to_send.type=1;
+		send_msg_through_list(listInit, message_to_send);
+		printf("5\n");
 		myPlayer = addToListEnd(args->list_of_players, newplayer);
+		for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
+			message_to_send.player_dummy = aux->next->player;
+			write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+		}
+	}
 	printf("1º player char: %c \n", args->list_of_players->next->player.position.c);
 	printf("8\n");
 
+
+	//cicle to receive more messages from this client
 	while( 1 ){
 
 		if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
@@ -80,21 +121,12 @@ void* thread_players(void* arg){
 
 			dummy_player = myPlayer->player;
 			move_player(&dummy_player.position, message_from_client.direction);
+			printf("moved my player \n");
 			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0);
 			message_to_send.type = 2;
 			if( aux != NULL) {
-				// bateu contra um player
-				if (aux->player.health == 0)
-				{
-					// Kill player
-					// message_to_send.
-					// write(aux->client_fd_player, &message_to_send, sizeof(message_s2c_t));
-					
-				}
-				else {
-					message_to_send.player_dummy = aux->player;
-					send_msg_through_list(listInit, message_to_send);
-				}
+				message_to_send.player_dummy = aux->player;
+				send_msg_through_list(listInit, message_to_send);
 			}
 			else {
 				// Não bateu contra um player
@@ -103,9 +135,41 @@ void* thread_players(void* arg){
 				send_msg_through_list(args->list_of_players, message_to_send);
 				// function to write to everyone, not sure se ele fica com o write de cima.
 			}
-
-
 		}
+		if (message_from_client.type == -1) {
+			// Player has health == 0!
+			myPlayer->is_active = 0;
+			args10s = malloc(sizeof(thread_args_t));
+			args10s->self_client_fd=args->self_client_fd;
+			args10s->list_of_players = listInit;
+			args10s->bots = &myPlayer->player; // Usar bots para passar player
+			if(pthread_create(&(args10s->self_thread_id), NULL, thread_10secs, (void *)args10s)!=0){
+			perror("Error while creating Thread");
+			}
+
+			if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
+				perror("Error receiving data from client");
+				return NULL;
+			}
+			if (message_from_client.type == -1){
+				// Client wants to die
+				myPlayer->is_active = -1; 
+				message_to_send.type = -3;
+				message_to_send.player_dummy = myPlayer->player;
+				send_msg_through_list(args->list_of_players, message_to_send);
+				RemoveFromList(args->list_of_players, myPlayer->player);				
+			}
+			if (message_from_client.type == 2) {
+				// Client wants to keep playing
+				myPlayer->is_active = 1;
+				message_to_send.type = -2;
+				send(self_client_connection, &message_to_send, sizeof(message_s2c_t),0);			
+			}
+			
+
+			
+		}
+		
 	}
     // Close the connection
     close(self_client_connection);
