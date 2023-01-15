@@ -51,8 +51,8 @@ void* thread_players(void* arg){
 	}
 
 	do{
-		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z'), &rwlock);
-	}while(already_existent_char(args->list_of_players, newplayer.player.position.c, &rwlock)!=0);// cycle
+		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z'));
+	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=0);// cycle
 
 	newplayer.thread_player = args->self_thread_id;
 	newplayer.client_fd_player = args->self_client_fd;
@@ -113,7 +113,14 @@ void* thread_players(void* arg){
 		
 			dummy_player = myPlayer->player;
 			move_player(&dummy_player.position, message_from_client.direction);
-			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0, &rwlock);
+
+			pthread_rwlock_wrlock(&rwlock.player_lock);
+			pthread_rwlock_wrlock(&rwlock.bot_lock);
+			pthread_rwlock_wrlock(&rwlock.reward_lock);
+			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0);
+			pthread_rwlock_unlock(&rwlock.reward_lock);
+			pthread_rwlock_unlock(&rwlock.bot_lock);
+			pthread_rwlock_unlock(&rwlock.player_lock);
 			message_to_send.type = 2;
 			if( aux != NULL) {
 				// Devia ter um mutex aqui
@@ -147,7 +154,7 @@ void* thread_players(void* arg){
 				pthread_rwlock_unlock(&rwlock.player_lock);
 			}
 			pthread_rwlock_rdlock(&rwlock.player_lock);
-			delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+			//delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 			pthread_rwlock_unlock(&rwlock.player_lock);
 		}
 	
@@ -191,19 +198,22 @@ void* thread_players(void* arg){
 void* thread_rewards(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
 	message_s2c_t message_with_rewards;
-	int i,x,y;
+	int i,x,y, changed;
 	//create first five rewards
-	init_rewards_board(args->rewards, args->bots, args->list_of_players, &rwlock);
+	pthread_rwlock_wrlock(&rwlock.reward_lock);		
+	init_rewards_board(args->rewards, args->bots, args->list_of_players);
+	pthread_rwlock_unlock(&rwlock.reward_lock);
 	message_with_rewards.type=4;
 	
 	while(1){
 		sleep(5);
+		changed = 0;
 		for(i=0;i<10;i++){
-			if(args->rewards[i].flag==0){
+			if(args->rewards[i].flag==0 && changed == 0){
 				do{
                     x=RandInt(1,WINDOW_SIZE-2);
                     y=RandInt(1,WINDOW_SIZE-2);
-                }while(is_free_position(args->rewards, args->bots, args->list_of_players, x, y, &rwlock)==false);
+                }while(is_free_position(args->rewards, args->bots, args->list_of_players, x, y)==false);
 				pthread_rwlock_wrlock(&rwlock.reward_lock);
 				args->rewards[i].flag=1;
 				args->rewards[i].value= RandInt(1,5);
@@ -215,9 +225,9 @@ void* thread_rewards(void* arg){
 				pthread_rwlock_unlock(&rwlock.reward_lock);
 				pthread_rwlock_rdlock(&rwlock.player_lock);
 				send_msg_through_list(args->list_of_players, message_with_rewards);
-				delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+				//delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 				pthread_rwlock_unlock(&rwlock.player_lock);
-				break;
+				changed = 1;
 			}
 		}
 	}
@@ -242,7 +252,7 @@ void* thread_bots(void* arg){
 			x=RandInt(1,WINDOW_SIZE-1);
 			y=RandInt(1,WINDOW_SIZE-1);
 			
-		}while (!(is_free_position(rewards, bots, listInit ,x,y, &rwlock)));
+		}while (!(is_free_position(rewards, bots, listInit ,x,y)));
 		bots[i].health=10;
 		bots[i].position.c='*';
 		bots[i].position.x=x;
@@ -254,7 +264,14 @@ void* thread_bots(void* arg){
 		for(i=0;i<nr_bots;i++){
 			player_dummy=bots[i];
 			move_player(&player_dummy.position, RandInt(KEY_DOWN,KEY_RIGHT));
-			collision_checker(listInit, &player_dummy, bots, rewards, false, i, &rwlock);
+			pthread_rwlock_wrlock(&rwlock.player_lock);
+			pthread_rwlock_wrlock(&rwlock.bot_lock);
+			pthread_rwlock_wrlock(&rwlock.reward_lock);
+			collision_checker(listInit, &player_dummy, bots, rewards, false, i);
+			pthread_rwlock_unlock(&rwlock.reward_lock);
+			pthread_rwlock_unlock(&rwlock.bot_lock);
+			pthread_rwlock_unlock(&rwlock.player_lock);
+			
 			//pthread_rwlock_wrlock(&rwlock.bot_lock);
 			bots[i].position.x=player_dummy.position.x;
 			bots[i].position.y=player_dummy.position.y;
@@ -264,7 +281,7 @@ void* thread_bots(void* arg){
 		memcpy(message_with_bots.bots, bots, 10*sizeof(player_t));
 		pthread_rwlock_unlock(&rwlock.bot_lock);
 		pthread_rwlock_rdlock(&rwlock.player_lock);
-		delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+		//delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 		send_msg_through_list(listInit, message_with_bots);
 		pthread_rwlock_unlock(&rwlock.player_lock);
 	}
@@ -317,7 +334,7 @@ int main(int argc, char *argv[]){
 
 
 	thread_args_t *args;
-	listen(sock_fd,2);
+	listen(sock_fd,5);
 
 	// launching rewards thread
 	args = malloc(sizeof(thread_args_t));
