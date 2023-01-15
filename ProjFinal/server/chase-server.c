@@ -1,9 +1,10 @@
 #include "../header/chase.h"
 
-int NPlayers, NBots;
+int NPlayers;
 playerList_t *listInit;
 WINDOW * my_win;
 WINDOW* message_win;
+locks_t rwlock;
 
 void* thread_10secs(void* arg){
 	thread_args_t *args= (thread_args_t*) arg;
@@ -11,17 +12,18 @@ void* thread_10secs(void* arg){
 	message_s2c_t message_to_send;
 	playerList_t* myPlayer_inList=findInList(args->list_of_players, myPlayer->position.c);
 	
-	//printf("Comecei a thread dos 10 segundos \n");
 	sleep(10);
-	//printf("passaram 10s %c %d\n ", myPlayer_inList->player.position.c,myPlayer_inList->is_active);
 	if ( myPlayer_inList->is_active == 0) {
-		
-		//printf("Passaram 10s sem que nada acontecesse\n");
+
 		message_to_send.type = -3;
 		message_to_send.player_dummy = *myPlayer;
+		pthread_rwlock_rdlock(&rwlock.player_lock);
 		send_msg_through_list(args->list_of_players, message_to_send);
+		pthread_rwlock_unlock(&rwlock.player_lock);
 		close(args->self_client_fd);
+		pthread_rwlock_wrlock(&rwlock.player_lock);
 		RemoveFromList(args->list_of_players, *myPlayer);
+		pthread_rwlock_unlock(&rwlock.player_lock);
 	}
 	free(arg);
 	pthread_exit(NULL);
@@ -49,32 +51,18 @@ void* thread_players(void* arg){
 	}
 
 	do{
-		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z'));
-		//printf("Cheguei ao new_player\n");
-	}while(already_existent_char(args->list_of_players, newplayer.player.position.c)!=0);// cycle
-	//printf("char: %c \n", newplayer.player.position.c);
-	//printf("Position x: %d \n", newplayer.player.position.x);
-	//printf("Position y: %d \n", newplayer.player.position.y);
-	//printf("1\n");
+		new_player(&newplayer.player.position, args->list_of_players, args->bots, args->rewards, RandInt('A','Z'), &rwlock);
+	}while(already_existent_char(args->list_of_players, newplayer.player.position.c, &rwlock)!=0);// cycle
+
 	newplayer.thread_player = args->self_thread_id;
 	newplayer.client_fd_player = args->self_client_fd;
 	newplayer.player.health = 10;
 	newplayer.is_active = 1;
 
-	//printf("2\n");
-	// message_to_send.type = 1;
-	// for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
-
-	// 	message_to_send.player_dummy = aux->next->player;
-	// 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	// }
-	//printf("3\n");
-
 	//Transmits bots info
 	message_to_send.type = 3;
 	memcpy(message_to_send.bots, args->bots, 10*sizeof(player_t));
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	//printf("4\n");
 
 	//transmits rewards info
 	message_to_send.type = 4;
@@ -85,30 +73,32 @@ void* thread_players(void* arg){
 	message_to_send.player_dummy = newplayer.player;
 	message_to_send.type = 0;
 	write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
-	//printf("6\n");
 
 	//receive the confirmation from the player that it started playing
 	if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 		perror("Error receiving data from client");
 		return NULL;
 	}
-	//printf("7\n");
 
 	//if the message is indeed of that type, adds the player to the list
 	if(message_from_client.type == 0){
 		//transmits the info that it created a new player to all players
 		message_to_send.type=1;
+		pthread_rwlock_rdlock(&rwlock.player_lock);
 		send_msg_through_list(listInit, message_to_send);
-		//printf("5\n");
+		pthread_rwlock_unlock(&rwlock.player_lock);
+
+		pthread_rwlock_wrlock(&rwlock.player_lock);
 		myPlayer = addToListEnd(args->list_of_players, newplayer);
+		pthread_rwlock_unlock(&rwlock.player_lock);
+
+		pthread_rwlock_rdlock(&rwlock.player_lock);
 		for( aux = args->list_of_players; aux->next!= NULL; aux = aux->next) {
 			message_to_send.player_dummy = aux->next->player;
-			write(self_client_connection, &message_to_send, sizeof(message_s2c_t));
+			send(self_client_connection, &message_to_send, sizeof(message_s2c_t), 0);
 		}
+		pthread_rwlock_unlock(&rwlock.player_lock);
 	}
-	//printf("1º player char: %c \n", args->list_of_players->next->player.position.c);
-	//printf("8\n");
-
 
 	//cicle to receive more messages from this client
 	while( 1 ){
@@ -117,25 +107,21 @@ void* thread_players(void* arg){
 			perror("Error receiving data from client");
 			return NULL;
 		}
-		//printf("tipo %d %d\n", message_from_client.type, self_client_connection);
-		// for( aux = args->list_of_players; aux->next != NULL; aux = aux->next)
-		// {
-		// 	printf("Player %c health: %d\n", aux->next->player.position.c, aux->next->player.health);
-		// }
-		
+	
 
 		if (message_from_client.type == 1) {
-			// À partida se ele consegue enviar esta mensagem, é porque está vivo
-			// Se tivesse morto tinha recebido uma mensagem de morte.
-
+		
 			dummy_player = myPlayer->player;
 			move_player(&dummy_player.position, message_from_client.direction);
-			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0);
+			aux = collision_checker(args->list_of_players, &dummy_player, args->bots, args->rewards, 1, 0, &rwlock);
 			message_to_send.type = 2;
 			if( aux != NULL) {
+				// Devia ter um mutex aqui
 				if (aux->player.health == 0 && aux->is_active==1)
 				{
+					pthread_rwlock_wrlock(&rwlock.player_lock);
 					aux->is_active = 0;
+					pthread_rwlock_unlock(&rwlock.player_lock);
 					// Player has health == 0!
 					//printf("Player %c com saúde a 0, %d\n", aux->player.position.c, aux->player.health);
 					args10s = malloc(sizeof(thread_args_t));
@@ -147,17 +133,22 @@ void* thread_players(void* arg){
 					}
 					
 				}
-				
+				pthread_rwlock_rdlock(&rwlock.player_lock);
 				message_to_send.player_dummy = aux->player;
 				send_msg_through_list(listInit, message_to_send);
+				pthread_rwlock_unlock(&rwlock.player_lock);
 			}
 			else {
 				// Não bateu contra um player
 				myPlayer->player = dummy_player;
 				message_to_send.player_dummy = dummy_player;
+				pthread_rwlock_rdlock(&rwlock.player_lock);
 				send_msg_through_list(args->list_of_players, message_to_send);
+				pthread_rwlock_unlock(&rwlock.player_lock);
 			}
+			pthread_rwlock_rdlock(&rwlock.player_lock);
 			delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+			pthread_rwlock_unlock(&rwlock.player_lock);
 		}
 	
 		//printf("tipo %d %d\n", message_from_client.type, self_client_connection);
@@ -167,9 +158,13 @@ void* thread_players(void* arg){
 			myPlayer->is_active = -1; 
 			message_to_send.type = -3;
 			message_to_send.player_dummy = myPlayer->player;
+			pthread_rwlock_rdlock(&rwlock.player_lock);
 			send_msg_through_list(args->list_of_players, message_to_send);
+			pthread_rwlock_unlock(&rwlock.player_lock);
 			close(args->self_client_fd);
+			pthread_rwlock_wrlock(&rwlock.player_lock);
 			RemoveFromList(args->list_of_players, myPlayer->player);
+			pthread_rwlock_unlock(&rwlock.player_lock);
 			pthread_exit(NULL);		
 		}
 		if (message_from_client.type == 2) {
@@ -181,7 +176,9 @@ void* thread_players(void* arg){
 			send(self_client_connection, &message_to_send, sizeof(message_s2c_t),0);
 			message_to_send.type=2;
 			message_to_send.player_dummy=myPlayer->player;
+			pthread_rwlock_rdlock(&rwlock.player_lock);
 			send_msg_through_list(listInit, message_to_send);		
+			pthread_rwlock_unlock(&rwlock.player_lock);
 		}
 	}
     // Close the connection
@@ -196,24 +193,30 @@ void* thread_rewards(void* arg){
 	message_s2c_t message_with_rewards;
 	int i,x,y;
 	//create first five rewards
-	init_rewards_board(args->rewards, args->bots, args->list_of_players);
+	init_rewards_board(args->rewards, args->bots, args->list_of_players, &rwlock);
 	message_with_rewards.type=4;
 	
 	while(1){
 		sleep(5);
 		for(i=0;i<10;i++){
 			if(args->rewards[i].flag==0){
-				args->rewards[i].flag=1;
-				args->rewards[i].value= RandInt(1,5);
 				do{
                     x=RandInt(1,WINDOW_SIZE-2);
                     y=RandInt(1,WINDOW_SIZE-2);
-                }while(is_free_position(args->rewards, args->bots, args->list_of_players, x, y)==false);
+                }while(is_free_position(args->rewards, args->bots, args->list_of_players, x, y, &rwlock)==false);
+				pthread_rwlock_wrlock(&rwlock.reward_lock);
+				args->rewards[i].flag=1;
+				args->rewards[i].value= RandInt(1,5);
 				args->rewards[i].x=x;
                 args->rewards[i].y=y;
+				pthread_rwlock_unlock(&rwlock.reward_lock);
+				pthread_rwlock_rdlock(&rwlock.reward_lock);
 				memcpy(message_with_rewards.rewards, args->rewards, 10*sizeof(reward_t));
+				pthread_rwlock_unlock(&rwlock.reward_lock);
+				pthread_rwlock_rdlock(&rwlock.player_lock);
 				send_msg_through_list(args->list_of_players, message_with_rewards);
 				delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+				pthread_rwlock_unlock(&rwlock.player_lock);
 				break;
 			}
 		}
@@ -235,15 +238,17 @@ void* thread_bots(void* arg){
 	message_with_bots.type=3;
 
 	for(i=0; i<nr_bots;i++){
-		bots[i].health=10;
-		bots[i].position.c='*';
 		do{
 			x=RandInt(1,WINDOW_SIZE-1);
 			y=RandInt(1,WINDOW_SIZE-1);
 			
-		}while (!(is_free_position(rewards, bots, listInit ,x,y)));
+		}while (!(is_free_position(rewards, bots, listInit ,x,y, &rwlock)));
+		pthread_rwlock_rdlock(&rwlock.bot_lock);
+		bots[i].health=10;
+		bots[i].position.c='*';
 		bots[i].position.x=x;
-		bots[i].position.y=y;	
+		bots[i].position.y=y;
+		pthread_rwlock_unlock(&rwlock.bot_lock);
 	}
 
 	while(1){
@@ -251,13 +256,19 @@ void* thread_bots(void* arg){
 		for(i=0;i<nr_bots;i++){
 			player_dummy=bots[i];
 			move_player(&player_dummy.position, RandInt(KEY_DOWN,KEY_RIGHT));
-			collision_checker(listInit, &player_dummy, bots, rewards, false, i);
+			collision_checker(listInit, &player_dummy, bots, rewards, false, i, &rwlock);
+			pthread_rwlock_rdlock(&rwlock.bot_lock);
 			bots[i].position.x=player_dummy.position.x;
 			bots[i].position.y=player_dummy.position.y;
+			pthread_rwlock_unlock(&rwlock.bot_lock);
 		}
+		pthread_rwlock_wrlock(&rwlock.bot_lock);
 		memcpy(message_with_bots.bots, bots, 10*sizeof(player_t));
+		pthread_rwlock_unlock(&rwlock.bot_lock);
+		pthread_rwlock_rdlock(&rwlock.player_lock);
 		delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 		send_msg_through_list(listInit, message_with_bots);
+		pthread_rwlock_unlock(&rwlock.player_lock);
 	}
 }
 
@@ -266,6 +277,10 @@ int main(int argc, char *argv[]){
 	reward_t rewards[10];
 
 	int nr_bots=atoi(argv[argc-1]);
+	pthread_rwlock_init(&rwlock.player_lock, NULL);
+	pthread_rwlock_init(&rwlock.reward_lock, NULL);
+	pthread_rwlock_init(&rwlock.bot_lock, NULL);
+	
 
 	//Initialize list of players with first element being a void element
 	listInit = (playerList_t*) calloc(1,sizeof(playerList_t));

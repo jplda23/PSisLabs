@@ -85,6 +85,12 @@ typedef struct thread_args_t{
     player_t* bots;
 } thread_args_t;
 
+typedef struct locks_t{
+    pthread_rwlock_t player_lock;
+    pthread_rwlock_t reward_lock;
+    pthread_rwlock_t bot_lock;
+} locks_t;
+
 
 playerList_t* addToListEnd(playerList_t* listInit, playerList_t playerToAdd) {
 
@@ -168,17 +174,20 @@ bool send_msg_through_list(playerList_t* listInit, message_s2c_t message_to_send
     return true;
 }
 
-bool is_free_position(reward_t* rewards, player_t* bots, playerList_t* listInit, int x, int y){
+bool is_free_position(reward_t* rewards, player_t* bots, playerList_t* listInit, int x, int y, locks_t* rwlock){
     int i;
     playerList_t* aux;
 
+    pthread_rwlock_rdlock(&rwlock->bot_lock);
     for(i=0;i<10;i++){
         if(bots[i].position.x==x && bots[i].position.y == y)
             return false;
         if(rewards[i].x==x && rewards[i].y==y)
             return false;
     }
+    pthread_rwlock_unlock(&rwlock->bot_lock);
 
+    pthread_rwlock_wrlock(&rwlock->player_lock);
     if (listInit != NULL){
 
             for( aux = listInit; aux->next != NULL; aux = aux->next) {
@@ -187,15 +196,16 @@ bool is_free_position(reward_t* rewards, player_t* bots, playerList_t* listInit,
                     return false;
             }
     }
+    pthread_rwlock_unlock(&rwlock->player_lock);
     return true;
 }
 
-void new_player (player_position_t * player, playerList_t* initList, player_t* bots, reward_t* rewards, char c){
+void new_player (player_position_t * player, playerList_t* initList, player_t* bots, reward_t* rewards, char c, locks_t* rwlock){
     int x,y;
     do{
         x = RandInt(1, WINDOW_SIZE-2);
         y = RandInt(1, WINDOW_SIZE-2);
-    }while(is_free_position(rewards, bots, initList, x, y)==false);
+    }while(is_free_position(rewards, bots, initList, x, y, rwlock)==false);
     player->x=x;
     player->y=y;     
     player->c = c;
@@ -286,7 +296,7 @@ void init_bots_health(player_t* bot_n){
     }
 }
 
-void init_rewards_board(reward_t* reward_n, player_t* bots, playerList_t* listInit){
+void init_rewards_board(reward_t* reward_n, player_t* bots, playerList_t* listInit, locks_t* locks){
     int i,x,y;
     for(i=0;i<10;i++){
         reward_n[i].flag=0;
@@ -299,21 +309,23 @@ void init_rewards_board(reward_t* reward_n, player_t* bots, playerList_t* listIn
         do{
         x=RandInt(1,WINDOW_SIZE-2);
         y=RandInt(1,WINDOW_SIZE-2);
-        }while(is_free_position(reward_n, bots, listInit, x, y)==false);
+        }while(is_free_position(reward_n, bots, listInit, x, y, locks)==false);
         reward_n[i].x=x;
         reward_n[i].y=y;
     }
 }
 
-int already_existent_char(playerList_t* listInit, char c){//returns the number of players with that char, expect result 1
+int already_existent_char(playerList_t* listInit, char c, locks_t* rwlock){//returns the number of players with that char, expect result 1
     int count=0;
     playerList_t* aux;
-
+    
+    pthread_rwlock_rdlock(&rwlock->player_lock);
     for( aux = listInit; aux->next != NULL; aux = aux->next) {
     
         if (aux->next->player.position.c == c)
             count++;
     }
+    pthread_rwlock_unlock(&rwlock->player_lock);
     return count;
 }
 
@@ -362,7 +374,7 @@ int go_through_rewards(reward_t* rewards, player_t* dummy_player){
     return -1;
 }
 
-playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player, player_t* bots, reward_t* rewards, int is_player, int array_position) {
+playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player, player_t* bots, reward_t* rewards, int is_player, int array_position, locks_t* rwlock) {
 
     int i;
     playerList_t* aux, *aux2;
@@ -372,32 +384,49 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
     {
     case 0:     // dummie_player is a bot
 
+        pthread_rwlock_rdlock(&rwlock->player_lock);
         aux = go_through_player(listInit, dummie_player);//Test vs players
+        pthread_rwlock_unlock(&rwlock->player_lock);
         if (aux != NULL) // Found a player in its position
         {
+            pthread_rwlock_rdlock(&rwlock->bot_lock);
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
+            pthread_rwlock_unlock(&rwlock->bot_lock);
             if(aux->is_active == 1) {
+                pthread_rwlock_wrlock(&rwlock->player_lock);
                 aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
                 message_to_client.type = 2;
                 message_to_client.player_dummy = aux->player;
+                pthread_rwlock_unlock(&rwlock->player_lock);
+                pthread_rwlock_rdlock(&rwlock->player_lock);
                 send_msg_through_list(listInit, message_to_client);
+                pthread_rwlock_unlock(&rwlock->player_lock);
             }
             
             return aux;
         }
-
-        if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
+        pthread_rwlock_rdlock(&rwlock->bot_lock);
+        i = go_through_bots(bots, dummie_player);
+        pthread_rwlock_unlock(&rwlock->bot_lock);
+        if ( i != -1) // Found a bot in its position
         {
+            pthread_rwlock_rdlock(&rwlock->bot_lock);
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
+            pthread_rwlock_unlock(&rwlock->bot_lock);
             return NULL;
         }
 
-        if (go_through_rewards(rewards, dummie_player) != -1) // Found a prize
+        pthread_rwlock_rdlock(&rwlock->reward_lock);
+        i = go_through_rewards(rewards, dummie_player);
+        pthread_rwlock_unlock(&rwlock->reward_lock);
+        if ( i != -1) // Found a prize
         {
+            pthread_rwlock_rdlock(&rwlock->bot_lock);
             dummie_player->position.x = bots[array_position].position.x;
             dummie_player->position.y = bots[array_position].position.y;
+            pthread_rwlock_unlock(&rwlock->bot_lock);
             return NULL;        
         }       
         
@@ -405,6 +434,7 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
 
     case 1:    // dummie_player is a Player
         
+        pthread_rwlock_wrlock(&rwlock->player_lock);
         aux = go_through_player(listInit, dummie_player);
         if (aux != NULL && aux->player.position.c != dummie_player->position.c) // Found a player in its position that is not himself
         {
@@ -426,24 +456,35 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
             } 
             return aux;
         }
+        pthread_rwlock_unlock(&rwlock->player_lock);
 
-        if (go_through_bots(bots, dummie_player) != -1) // Found a bot in its position
+        pthread_rwlock_wrlock(&rwlock->bot_lock);
+        i = go_through_bots(bots, dummie_player);
+        pthread_rwlock_unlock(&rwlock->bot_lock);
+        if ( i != -1) // Found a bot in its position
         {
+            pthread_rwlock_wrlock(&rwlock->player_lock);
             aux2 = findInList(listInit, dummie_player->position.c);
             dummie_player->position.x = aux2->player.position.x;
             dummie_player->position.y = aux2->player.position.y;
+            pthread_rwlock_unlock(&rwlock->player_lock);
             
             return NULL;
         }
-
+        pthread_rwlock_wrlock(&rwlock->reward_lock);
         i = go_through_rewards(rewards, dummie_player);
+        pthread_rwlock_unlock(&rwlock->reward_lock);
         if (i != -1) // Found a prize
         {
+            pthread_rwlock_wrlock(&rwlock->reward_lock);
             rewards[i].flag = 0;
+            pthread_rwlock_unlock(&rwlock->reward_lock);
+            pthread_rwlock_wrlock(&rwlock->player_lock);
             dummie_player->health = dummie_player->health + rewards[i].value <= 10 ? dummie_player->health + rewards[i].value  : 10;
             message_to_client.type = 4;
             memcpy(message_to_client.rewards, rewards, 10*sizeof(reward_t));
             send_msg_through_list(listInit, message_to_client);
+            pthread_rwlock_unlock(&rwlock->player_lock);
             return NULL;
         } 
 
