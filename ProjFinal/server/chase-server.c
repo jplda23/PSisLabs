@@ -105,7 +105,7 @@ void* thread_players(void* arg){
 
 		if (recv(self_client_connection, &message_from_client , sizeof(message_c2s_t), 0) <= 0) {
 			perror("Error receiving data from client");
-			return NULL;
+			pthread_exit(NULL);
 		}
 	
 
