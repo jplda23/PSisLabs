@@ -154,7 +154,7 @@ void* thread_players(void* arg){
 				pthread_rwlock_unlock(&rwlock.player_lock);
 			}
 			pthread_rwlock_rdlock(&rwlock.player_lock);
-			//delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+			delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 			pthread_rwlock_unlock(&rwlock.player_lock);
 		}
 	
@@ -225,7 +225,7 @@ void* thread_rewards(void* arg){
 				pthread_rwlock_unlock(&rwlock.reward_lock);
 				pthread_rwlock_rdlock(&rwlock.player_lock);
 				send_msg_through_list(args->list_of_players, message_with_rewards);
-				//delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+				delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 				pthread_rwlock_unlock(&rwlock.player_lock);
 				changed = 1;
 			}
@@ -249,8 +249,8 @@ void* thread_bots(void* arg){
 
 	for(i=0; i<nr_bots;i++){
 		do{
-			x=RandInt(1,WINDOW_SIZE-1);
-			y=RandInt(1,WINDOW_SIZE-1);
+			x=RandInt(1,WINDOW_SIZE-2);
+			y=RandInt(1,WINDOW_SIZE-2);
 			
 		}while (!(is_free_position(rewards, bots, listInit ,x,y)));
 		bots[i].health=10;
@@ -272,16 +272,16 @@ void* thread_bots(void* arg){
 			pthread_rwlock_unlock(&rwlock.bot_lock);
 			pthread_rwlock_unlock(&rwlock.player_lock);
 			
-			//pthread_rwlock_wrlock(&rwlock.bot_lock);
+			pthread_rwlock_wrlock(&rwlock.bot_lock);
 			bots[i].position.x=player_dummy.position.x;
 			bots[i].position.y=player_dummy.position.y;
-			//pthread_rwlock_unlock(&rwlock.bot_lock);
+			pthread_rwlock_unlock(&rwlock.bot_lock);
 		}
 		pthread_rwlock_rdlock(&rwlock.bot_lock);
 		memcpy(message_with_bots.bots, bots, 10*sizeof(player_t));
 		pthread_rwlock_unlock(&rwlock.bot_lock);
 		pthread_rwlock_rdlock(&rwlock.player_lock);
-		//delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
+		delete_and_draw_board(my_win, message_win, args->list_of_players,  args->bots,  args->rewards);
 		send_msg_through_list(listInit, message_with_bots);
 		pthread_rwlock_unlock(&rwlock.player_lock);
 	}
