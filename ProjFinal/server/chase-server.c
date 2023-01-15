@@ -243,12 +243,10 @@ void* thread_bots(void* arg){
 			y=RandInt(1,WINDOW_SIZE-1);
 			
 		}while (!(is_free_position(rewards, bots, listInit ,x,y, &rwlock)));
-		pthread_rwlock_rdlock(&rwlock.bot_lock);
 		bots[i].health=10;
 		bots[i].position.c='*';
 		bots[i].position.x=x;
 		bots[i].position.y=y;
-		pthread_rwlock_unlock(&rwlock.bot_lock);
 	}
 
 	while(1){
@@ -257,12 +255,12 @@ void* thread_bots(void* arg){
 			player_dummy=bots[i];
 			move_player(&player_dummy.position, RandInt(KEY_DOWN,KEY_RIGHT));
 			collision_checker(listInit, &player_dummy, bots, rewards, false, i, &rwlock);
-			pthread_rwlock_rdlock(&rwlock.bot_lock);
+			//pthread_rwlock_wrlock(&rwlock.bot_lock);
 			bots[i].position.x=player_dummy.position.x;
 			bots[i].position.y=player_dummy.position.y;
-			pthread_rwlock_unlock(&rwlock.bot_lock);
+			//pthread_rwlock_unlock(&rwlock.bot_lock);
 		}
-		pthread_rwlock_wrlock(&rwlock.bot_lock);
+		pthread_rwlock_rdlock(&rwlock.bot_lock);
 		memcpy(message_with_bots.bots, bots, 10*sizeof(player_t));
 		pthread_rwlock_unlock(&rwlock.bot_lock);
 		pthread_rwlock_rdlock(&rwlock.player_lock);
@@ -273,7 +271,7 @@ void* thread_bots(void* arg){
 }
 
 int main(int argc, char *argv[]){
-	player_t bots[NBOTS];//max possible size of vector
+	player_t bots[10];//max possible size of vector
 	reward_t rewards[10];
 
 	int nr_bots=atoi(argv[argc-1]);
@@ -319,7 +317,7 @@ int main(int argc, char *argv[]){
 
 
 	thread_args_t *args;
-	listen(sock_fd,5);
+	listen(sock_fd,2);
 
 	// launching rewards thread
 	args = malloc(sizeof(thread_args_t));
@@ -364,16 +362,6 @@ int main(int argc, char *argv[]){
 		if(pthread_create(&(args->self_thread_id), NULL, thread_players, (void *)args)!=0){
 			perror("Error while creating Thread");
 		}
-		//printf("Criei uma thread|! \n");
-
-        // nbytes = recvfrom(sock_fd, buffer, 100, 0,
-		//                   ( struct sockaddr *)&client_addr, &client_addr_size);
-        // nbytes= recv(client_fd,buffer, sizeof(buffer),0);
-		// if(nbytes<0){
-        //     perror("ERROR receiving data fro socket");
-        // }
-
-		//printf("received %d bytes from %s \n", nbytes,buffer);
 		
 
     }

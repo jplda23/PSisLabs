@@ -36,6 +36,7 @@ void* thread_listenner(void* arg){
 						pthread_exit(NULL);
 					}
 					else {
+
 						RemoveFromList(args->list_of_players, message_received.player_dummy);
 						delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					}
@@ -46,18 +47,15 @@ void* thread_listenner(void* arg){
 					dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
 					if(dummy_pointer!=NULL){
 						dummy_pointer->player=message_received.player_dummy;
-						//My_player.player=dummy_pointer->player;
 					}
 					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
 					break;
 				case -1:
-					//printf("not possible to play, to many players");
+					printf("not possible to play, to many players"); //avisar que server is at capacity
 					exit(-1);
 					break;
 				
 				case 0:
-					//printf("0\n");
-					//probably lock
 					My_player.player =message_received.player_dummy;
 					My_player.thread_player=0;
 					My_player.client_fd_player=0;
@@ -81,7 +79,6 @@ void* thread_listenner(void* arg){
 					message_to_server.type=0;
 					send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
 					delete_and_draw_board(my_win, message_win, listInnit,  args->bots,  args->rewards);
-					
 					break;
 				
 				case 1:
@@ -98,10 +95,7 @@ void* thread_listenner(void* arg){
 					dummy_pointer=findInList(listInnit, message_received.player_dummy.position.c);
 					if(dummy_pointer!=NULL){
 						dummy_pointer->player=message_received.player_dummy;
-						mvwprintw(message_win, 5, 1, "char %c", message_received.player_dummy.position.c);
-						wrefresh(message_win);
 						if(dummy_pointer->player.position.c==My_player.player.position.c){
-							//My_player.player=dummy_pointer->player;
 							if(dummy_pointer->player.health==0){
 								global_player_will_die=1;
 								werase(my_win);
@@ -110,8 +104,6 @@ void* thread_listenner(void* arg){
 								mvwprintw(my_win, 3, 1, "You have 10 seconds to decide!\n");
 								mvwprintw(my_win, 4, 1, "Press C to continue, Q to exit!\n");
 								wmove(my_win, 5, 1);
-								//printf("char %c", My_player.player.position.c);
-								//mvwprintw(my_win, 10, 1, "char %c", My_player.player.position.c);
 								wrefresh(my_win);
 								wrefresh(message_win);
 							}
@@ -146,7 +138,7 @@ int main(int argc, char *argv[]){
 
     char* socket_port = argv[argc-1];
     char* socket_address = argv[argc-2];
-	playerList_t* listInnit;
+	playerList_t* listInnit, *aux;
 	listInnit= malloc(sizeof(playerList_t));
 	listInnit->next=NULL;
 	reward_t rewards[10];
@@ -159,7 +151,6 @@ int main(int argc, char *argv[]){
 		perror("socket: ");
 		exit(-1);
 	}
-	//printf(" socket created \n Ready to send\n");
 
     struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
@@ -209,26 +200,6 @@ int main(int argc, char *argv[]){
 			break;
 		}
 	}	
-		// if (global_player_will_die==1){
-			
-		// 	while(1){
-        // 		key = wgetch(my_win);
-		// 		if(key=='q'){
-		// 			//Send message to server to disconnect
-		// 			global_player_will_die=2; // aqui o client automaticamente disconecta , mas podemos fazer antes receber uma mensagem de disconect definitivo
-		// 			message_to_server.type = -1;
-		// 			send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-		// 			break;
-		// 		}
-		// 		if(key=='c'){
-		// 			//send message to server to keep playing
-		// 			message_to_server.type = 2;
-		// 			send(sock_fd, &message_to_server, sizeof(message_c2s_t),0);
-		// 			// aqui depois de mandar a msg para o server o client recebe uma msg do server de reiniciar o jogo (caso -2), e recomeça o jogo
-		// 			break;
-		// 		}
-		// 	}
-		// }
     
 	werase(my_win);
     werase(message_win);
@@ -241,7 +212,13 @@ int main(int argc, char *argv[]){
     mvwprintw(my_win, 2, 1, "Good Game!\n");
     wmove(my_win,3, 1);
     wrefresh(my_win);
-	//free list
 	close(sock_fd);
+	aux=listInnit;
+	while(aux->next!=NULL){
+		listInnit=aux->next;
+		free(aux);
+		aux=listInnit;
+	}
+
 	exit(0);
 }

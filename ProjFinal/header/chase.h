@@ -187,7 +187,7 @@ bool is_free_position(reward_t* rewards, player_t* bots, playerList_t* listInit,
     }
     pthread_rwlock_unlock(&rwlock->bot_lock);
 
-    pthread_rwlock_wrlock(&rwlock->player_lock);
+    pthread_rwlock_rdlock(&rwlock->player_lock);
     if (listInit != NULL){
 
             for( aux = listInit; aux->next != NULL; aux = aux->next) {
@@ -315,7 +315,7 @@ void init_rewards_board(reward_t* reward_n, player_t* bots, playerList_t* listIn
     }
 }
 
-int already_existent_char(playerList_t* listInit, char c, locks_t* rwlock){//returns the number of players with that char, expect result 1
+int already_existent_char(playerList_t* listInit, char c, locks_t* rwlock){//returns the number of players with that char, expect result 1? 0 I think now
     int count=0;
     playerList_t* aux;
     
@@ -434,31 +434,36 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
 
     case 1:    // dummie_player is a Player
         
-        pthread_rwlock_wrlock(&rwlock->player_lock);
+        
+        pthread_rwlock_rdlock(&rwlock->player_lock);
         aux = go_through_player(listInit, dummie_player);
+        pthread_rwlock_unlock(&rwlock->player_lock);
         if (aux != NULL && aux->player.position.c != dummie_player->position.c) // Found a player in its position that is not himself
         {
             // aux is the player that was hit
             // aux2 is the play that hits
-
+            pthread_rwlock_rdlock(&rwlock->player_lock);
             aux2 = findInList(listInit, dummie_player->position.c);
             dummie_player->position.x = aux2->player.position.x;
             dummie_player->position.y = aux2->player.position.y;
-
+            pthread_rwlock_unlock(&rwlock->player_lock);
             if (aux->is_active == 1)
             {
+                pthread_rwlock_wrlock(&rwlock->player_lock);
                 aux2->player.health = dummie_player->health + 1 <= 10 ? dummie_player->health + 1 : 10;
                 aux->player.health = aux->player.health - 1 >= 0 ? aux->player.health - 1 : 0;
-                
+                pthread_rwlock_unlock(&rwlock->player_lock);
+                pthread_rwlock_rdlock(&rwlock->player_lock);
                 message_to_client.type = 2;
                 message_to_client.player_dummy = aux2->player;
                 send_msg_through_list(listInit, message_to_client);
+                pthread_rwlock_unlock(&rwlock->player_lock);
+            
             } 
             return aux;
         }
-        pthread_rwlock_unlock(&rwlock->player_lock);
 
-        pthread_rwlock_wrlock(&rwlock->bot_lock);
+        pthread_rwlock_rdlock(&rwlock->bot_lock);
         i = go_through_bots(bots, dummie_player);
         pthread_rwlock_unlock(&rwlock->bot_lock);
         if ( i != -1) // Found a bot in its position
@@ -481,8 +486,12 @@ playerList_t* collision_checker(playerList_t* listInit, player_t* dummie_player,
             pthread_rwlock_unlock(&rwlock->reward_lock);
             pthread_rwlock_wrlock(&rwlock->player_lock);
             dummie_player->health = dummie_player->health + rewards[i].value <= 10 ? dummie_player->health + rewards[i].value  : 10;
+            pthread_rwlock_unlock(&rwlock->player_lock);
             message_to_client.type = 4;
+            pthread_rwlock_rdlock(&rwlock->reward_lock);
             memcpy(message_to_client.rewards, rewards, 10*sizeof(reward_t));
+            pthread_rwlock_unlock(&rwlock->reward_lock);
+            pthread_rwlock_rdlock(&rwlock->player_lock);
             send_msg_through_list(listInit, message_to_client);
             pthread_rwlock_unlock(&rwlock->player_lock);
             return NULL;
